@@ -43,6 +43,21 @@ async function writeRows({ growthpackUrl, tabName, rows }) {
   return result.data.updates?.updatedRows || rows.length;
 }
 
+function safePreviewRecord(record) {
+  return {
+    id: record.id || '',
+    name: record.name || '',
+    companyName: record.companyName || '',
+    value: record.value || 0,
+    stage: record.stage || '',
+    stageId: record.stageId || '',
+    owner: record.owner || '',
+    source: record.source || '',
+    lossReason: record.lossReason || '',
+    diagnostics: record._diagnostics || null
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return send(res, 405, { ok: false, message: 'Use POST' });
 
@@ -53,6 +68,7 @@ export default async function handler(req, res) {
     const stages = integration.stages || {};
     const limit = Number(body.limit || 50);
     const writeToSheet = Boolean(body.writeToSheet);
+    const includeDiagnostics = Boolean(body.includeDiagnostics) && !writeToSheet;
 
     const records = await getRecords({ integration, limit });
     const rows = records.map(record => toBaseCrmRow(record, stages));
@@ -69,6 +85,7 @@ export default async function handler(req, res) {
       records: records.length,
       writtenRows,
       rows,
+      previewRecords: includeDiagnostics ? records.slice(0, 5).map(safePreviewRecord) : undefined,
       message: writeToSheet ? 'Sync completed and rows were sent to BASE_CRM.' : 'Sync completed in preview mode.'
     });
   } catch (error) {
