@@ -8,7 +8,12 @@ const STAGE_MAP_V4_TRAFEGO = {
   '458934': { name: 'Compra', rank: 5, won: true, lost: false },
   '458935': { name: 'Lead Perdido', rank: 1, won: false, lost: true },
   '370524': { name: 'Lead Perdido', rank: 1, won: false, lost: true },
-  '373595': { name: 'Qualificação', rank: 2, won: false, lost: false }
+  '370523': { name: 'Lead Perdido', rank: 1, won: false, lost: true },
+  '373592': { name: 'Lead Perdido', rank: 1, won: false, lost: true },
+  '373593': { name: 'Lead Perdido', rank: 1, won: false, lost: true },
+  '373594': { name: 'Oportunidade', rank: 4, won: false, lost: false },
+  '373595': { name: 'Qualificação', rank: 2, won: false, lost: false },
+  '373596': { name: 'Compra', rank: 5, won: true, lost: false }
 };
 
 function readPath(obj, path) {
