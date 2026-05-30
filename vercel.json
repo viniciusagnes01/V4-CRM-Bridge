@@ -1,12 +1,6 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
-  "crons": [
-    {
-      "path": "/api/cron-moskit",
-      "schedule": "*/10 * * * *"
-    }
-  ],
   "github": {
     "silent": false
   }
