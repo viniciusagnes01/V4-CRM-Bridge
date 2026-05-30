@@ -117,6 +117,23 @@ function mapId(value, map) {
   return map && map[key] ? map[key] : key;
 }
 
+function mapName(value, map) {
+  const key = String(value || '').trim();
+  if (!key || !map) return '';
+  return map[key] || '';
+}
+
+function looksLikeIdentifier(value) {
+  const text = String(value || '').trim();
+  return /^\d{5,}$/.test(text) || /^[0-9a-f-]{24,}$/i.test(text);
+}
+
+function safeHumanName(value) {
+  const text = String(value || '').trim();
+  if (!text || looksLikeIdentifier(text)) return '';
+  return text;
+}
+
 function uniqueById(items) {
   const seen = new Set();
   const unique = [];
@@ -189,22 +206,24 @@ function normalizeDeal(raw, context = {}) {
   const contactId = firstId(raw.contacts) || firstId(raw.contactParticipants) || firstId(raw.contact) || firstId(raw.person);
   const companyId = firstId(raw.companies) || firstId(raw.company) || firstId(raw.organization) || firstId(raw.account);
 
-  const personName = pickText(raw, ['contact.name', 'person.name', 'customer.name', 'lead.name']) || mapId(contactId, context.contacts) || '';
-  const companyName = pickText(raw, ['company.name', 'organization.name', 'account.name']) || mapId(companyId, context.companies) || dealName;
+  const rawPersonName = pickText(raw, ['contact.name', 'person.name', 'customer.name', 'lead.name']) || mapName(contactId, context.contacts);
+  const personName = safeHumanName(rawPersonName);
+  const rawCompanyName = pickText(raw, ['company.name', 'organization.name', 'account.name']) || mapName(companyId, context.companies) || dealName;
+  const companyName = safeHumanName(rawCompanyName) || dealName;
 
   const ownerId = String(pickText(raw, ['responsible.id', 'owner.id', 'user.id', 'responsibleUser.id'], '', true) || pickText(raw, ['responsible', 'owner'], '', true));
-  const owner = pickText(raw, ['responsible.name', 'owner.name', 'user.name', 'responsibleUser.name']) || mapId(ownerId, context.users);
+  const owner = pickText(raw, ['responsible.name', 'owner.name', 'user.name', 'responsibleUser.name']) || mapName(ownerId, context.users) || mapId(ownerId, context.users);
 
   const lostReasonId = String(pickText(raw, ['lostReason.id', 'lossReason.id'], '', true) || pickText(raw, ['lostReason', 'lossReason'], '', true));
   const isLost = stageInfo.lost === true || status === 'lost' || status === 'perdido' || Boolean(lostReasonId);
-  const lossReason = isLost ? (pickText(raw, ['lostReason.name', 'lossReason.name']) || mapId(lostReasonId, context.lostReasons)) : '';
+  const lossReason = isLost ? (pickText(raw, ['lostReason.name', 'lossReason.name']) || mapName(lostReasonId, context.lostReasons) || mapId(lostReasonId, context.lostReasons)) : '';
 
   const sourceText = [raw.source || '', raw.origin || '', dealName || '', JSON.stringify(raw.entityCustomFields || [])].join(' | ');
   const isWon = stageInfo.won === true || status === 'won' || status === 'ganho' || status === 'ganha' || status === 'vendido' || status === 'vendida' || rank >= 5;
 
   return {
     id: leadId,
-    name: personName || dealName,
+    name: personName,
     companyName,
     value: pickNumber(raw, ['price', 'value', 'amount', 'dealValue'], 0),
     stage: stageInfo.name,
