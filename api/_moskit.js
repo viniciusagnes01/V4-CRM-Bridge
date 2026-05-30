@@ -2,19 +2,19 @@ function readPath(obj, path) {
   return path.split('.').reduce((acc, key) => acc && acc[key], obj);
 }
 
-function asText(value) {
+function asText(value, allowId = false) {
   if (value === undefined || value === null) return '';
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (Array.isArray(value)) return value.map(asText).filter(Boolean).join(', ');
+  if (Array.isArray(value)) return value.map(item => asText(item, allowId)).filter(Boolean).join(', ');
   if (typeof value === 'object') {
-    return asText(value.name || value.title || value.label || value.value || value.description || value.id || '');
+    return asText(value.name || value.title || value.label || value.value || value.description || (allowId ? value.id : '') || '', allowId);
   }
   return '';
 }
 
-function pickText(obj, paths, fallback = '') {
+function pickText(obj, paths, fallback = '', allowId = false) {
   for (const path of paths) {
-    const text = asText(readPath(obj, path));
+    const text = asText(readPath(obj, path), allowId);
     if (text) return text;
   }
   return fallback;
@@ -31,42 +31,60 @@ function pickNumber(obj, paths, fallback = 0) {
   return fallback;
 }
 
+function stageDiagnostics(raw) {
+  const candidates = [
+    'stage', 'stage.id', 'stage.name',
+    'stageId', 'stage_id', 'stageName',
+    'status', 'status.id', 'status.name', 'statusId',
+    'dealStage', 'dealStage.id', 'dealStage.name',
+    'pipelineStage', 'pipelineStage.id', 'pipelineStage.name',
+    'phase', 'phase.id', 'phase.name', 'phaseId',
+    'funnelStage', 'funnelStage.id', 'funnelStage.name',
+    'dealStatus', 'dealStatus.id', 'dealStatus.name'
+  ];
+
+  return candidates
+    .map(path => ({ path, value: asText(readPath(raw, path), true) }))
+    .filter(item => item.value);
+}
+
 function normalizeDeal(raw) {
   const stageName = pickText(raw, [
-    'stage.name',
-    'stage.title',
-    'stage.label',
-    'stage',
+    'stage.name', 'stage.title', 'stage.label', 'stage',
     'stageName',
-    'status.name',
-    'status.title',
-    'status.label',
-    'status',
-    'dealStage.name',
-    'dealStage.title',
-    'dealStage',
-    'pipelineStage.name',
-    'pipelineStage.title',
-    'pipelineStage',
-    'phase.name',
-    'phase.title',
-    'phase',
-    'funnelStage.name',
-    'funnelStage',
-    'dealStatus.name',
-    'dealStatus'
-  ]);
+    'status.name', 'status.title', 'status.label', 'status',
+    'dealStage.name', 'dealStage.title', 'dealStage',
+    'pipelineStage.name', 'pipelineStage.title', 'pipelineStage',
+    'phase.name', 'phase.title', 'phase',
+    'funnelStage.name', 'funnelStage',
+    'dealStatus.name', 'dealStatus'
+  ], '', false);
+
+  const stageId = pickText(raw, [
+    'stage.id', 'stageId', 'stage_id',
+    'status.id', 'statusId',
+    'dealStage.id',
+    'pipelineStage.id',
+    'phase.id', 'phaseId',
+    'funnelStage.id',
+    'dealStatus.id'
+  ], '', true);
 
   return {
-    id: pickText(raw, ['id', 'dealId', 'uuid', 'externalId']),
+    id: pickText(raw, ['id', 'dealId', 'uuid', 'externalId'], '', true),
     name: pickText(raw, ['name', 'title', 'dealName'], 'Negocio sem nome'),
     companyName: pickText(raw, ['company.name', 'organization.name', 'person.name', 'customer.name', 'entity.name']),
     value: pickNumber(raw, ['value', 'price', 'amount', 'dealValue'], 0),
-    stage: stageName || pickText(raw, ['stageId', 'statusId', 'phaseId']),
+    stage: stageName || stageId,
+    stageId,
     date: pickText(raw, ['createdAt', 'created_at', 'dateCreated', 'createdDate']) || new Date().toISOString(),
-    owner: pickText(raw, ['responsible.name', 'owner.name', 'user.name', 'responsibleUser.name', 'responsible', 'owner']),
-    source: pickText(raw, ['source.name', 'source', 'origin.name', 'origin', 'leadSource.name', 'leadSource']),
-    lossReason: pickText(raw, ['lossReason.name', 'lostReason.name', 'lossReason', 'lostReason'])
+    owner: pickText(raw, ['responsible.name', 'owner.name', 'user.name', 'responsibleUser.name']) || pickText(raw, ['responsible.id', 'owner.id', 'user.id', 'responsibleUser.id'], '', true),
+    source: pickText(raw, ['source.name', 'origin.name', 'leadSource.name', 'source', 'origin', 'leadSource']),
+    lossReason: pickText(raw, ['lossReason.name', 'lostReason.name']),
+    _diagnostics: {
+      keys: Object.keys(raw).slice(0, 60),
+      stageCandidates: stageDiagnostics(raw)
+    }
   };
 }
 
