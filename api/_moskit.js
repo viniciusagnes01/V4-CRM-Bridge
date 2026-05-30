@@ -7,7 +7,7 @@ function asText(value, allowId = false) {
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (Array.isArray(value)) return value.map(item => asText(item, allowId)).filter(Boolean).join(', ');
   if (typeof value === 'object') {
-    return asText(value.name || value.title || value.label || value.value || value.description || value.email || (allowId ? value.id : '') || '', allowId);
+    return asText(value.name || value.title || value.label || value.value || value.description || value.reason || value.text || value.email || (allowId ? value.id : '') || '', allowId);
   }
   return '';
 }
@@ -66,6 +66,19 @@ function stageDiagnostics(raw) {
     .filter(item => item.value);
 }
 
+function lossReasonDiagnostics(raw) {
+  const candidates = [
+    'lostReason', 'lostReason.id', 'lostReason.name', 'lostReason.title', 'lostReason.label', 'lostReason.reason', 'lostReason.description', 'lostReason.text',
+    'lossReason', 'lossReason.id', 'lossReason.name', 'lossReason.title', 'lossReason.label', 'lossReason.reason', 'lossReason.description', 'lossReason.text',
+    'lost_reason', 'loss_reason', 'reasonLost', 'reason_lost', 'lostReasonId', 'lossReasonId',
+    'statusReason', 'statusReason.name', 'closeReason', 'closeReason.name'
+  ];
+
+  return candidates
+    .map(path => ({ path, value: asText(readPath(raw, path), true) }))
+    .filter(item => item.value);
+}
+
 function normalizeDeal(raw) {
   const stageName = pickText(raw, [
     'stage.name', 'stage.title', 'stage.label', 'stage',
@@ -88,6 +101,13 @@ function normalizeDeal(raw) {
     'dealStatus.id'
   ], '', true);
 
+  const lossReason = pickText(raw, [
+    'lostReason.name', 'lostReason.title', 'lostReason.label', 'lostReason.reason', 'lostReason.description', 'lostReason.text',
+    'lossReason.name', 'lossReason.title', 'lossReason.label', 'lossReason.reason', 'lossReason.description', 'lossReason.text',
+    'lostReason', 'lossReason', 'lost_reason', 'loss_reason', 'reasonLost', 'reason_lost',
+    'statusReason.name', 'statusReason', 'closeReason.name', 'closeReason'
+  ], '', true);
+
   return {
     id: pickText(raw, ['id', 'dealId', 'uuid', 'externalId'], '', true),
     name: pickText(raw, ['name', 'title', 'dealName'], 'Negocio sem nome'),
@@ -98,10 +118,11 @@ function normalizeDeal(raw) {
     date: formatDate(pickText(raw, ['createdAt', 'created_at', 'dateCreated', 'createdDate'])),
     owner: pickText(raw, ['responsible.name', 'owner.name', 'user.name', 'responsibleUser.name']) || pickText(raw, ['responsible.id', 'owner.id', 'user.id', 'responsibleUser.id'], '', true),
     source: pickText(raw, ['source.name', 'origin.name', 'leadSource.name', 'source', 'origin', 'leadSource']),
-    lossReason: pickText(raw, ['lossReason.name', 'lostReason.name', 'lossReason', 'lostReason']),
+    lossReason,
     _diagnostics: {
       keys: Object.keys(raw).slice(0, 60),
-      stageCandidates: stageDiagnostics(raw)
+      stageCandidates: stageDiagnostics(raw),
+      lossReasonCandidates: lossReasonDiagnostics(raw)
     }
   };
 }
