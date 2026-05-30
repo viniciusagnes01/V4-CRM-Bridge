@@ -5,15 +5,8 @@ const STAGE_MAP_V4_TRAFEGO = {
   '370301': { name: 'Apresentação/agendamento de reunião', rank: 3, won: false, lost: false },
   '372772': { name: 'Envio de Proposta', rank: 4, won: false, lost: false },
   '372773': { name: 'Reunião de Alinhamento', rank: 4, won: false, lost: false },
-  '458934': { name: 'Compra', rank: 5, won: true, lost: false },
-  '458935': { name: 'Lead Perdido', rank: 1, won: false, lost: true },
-  '370524': { name: 'Lead Perdido', rank: 1, won: false, lost: true },
-  '370523': { name: 'Lead Perdido', rank: 1, won: false, lost: true },
-  '373592': { name: 'Lead Perdido', rank: 1, won: false, lost: true },
-  '373593': { name: 'Lead Perdido', rank: 1, won: false, lost: true },
-  '373594': { name: 'Oportunidade', rank: 4, won: false, lost: false },
-  '373595': { name: 'Qualificação', rank: 2, won: false, lost: false },
-  '373596': { name: 'Compra', rank: 5, won: true, lost: false }
+  '458935': { name: 'Aguardando Assinatura', rank: 4, won: false, lost: false },
+  '458934': { name: 'Compra', rank: 5, won: true, lost: false }
 };
 
 const REQUEST_DELAY_MS = 350;
@@ -288,7 +281,7 @@ function normalizeDeal(raw, context = {}) {
   const owner = pickText(raw, ['responsible.name', 'owner.name', 'user.name', 'responsibleUser.name']) || mapName(ownerId, context.users) || mapId(ownerId, context.users);
 
   const lostReasonId = String(pickText(raw, ['lostReason.id', 'lossReason.id'], '', true) || pickText(raw, ['lostReason', 'lossReason'], '', true));
-  const isLost = stageInfo.lost === true || status === 'lost' || status === 'perdido' || Boolean(lostReasonId);
+  const isLost = status === 'lost' || status === 'perdido' || Boolean(lostReasonId);
   const lossReason = isLost ? (pickText(raw, ['lostReason.name', 'lossReason.name']) || mapName(lostReasonId, context.lostReasons) || mapId(lostReasonId, context.lostReasons)) : '';
 
   const sourceText = [raw.source || '', raw.origin || '', dealName || '', JSON.stringify(raw.entityCustomFields || [])].join(' | ');
