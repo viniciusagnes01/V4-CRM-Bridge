@@ -23,7 +23,7 @@ async function getRecords({ integration, limit }) {
   if (crm === 'moskit') {
     const alias = integration.credentialAlias || integration.tokenAlias || '';
     const key = alias ? process.env[alias] : process.env.MOSKIT_ACCESS_KEY;
-    return fetchMoskitDeals({ baseUrl: integration.baseUrl, accessKey: key, limit });
+    return fetchMoskitDeals({ baseUrl: integration.baseUrl, accessKey: key, limit, pipelineId: integration.pipelineId });
   }
 
   return sampleRecords();
@@ -44,8 +44,27 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
 
   const auth = getGoogleAuth();
   const sheets = google.sheets({ version: 'v4', auth });
-  const range = `${tabName || 'BASE_CRM'}!A:O`;
+  const targetTab = tabName || 'BASE_CRM';
+  const range = `${targetTab}!A:O`;
   const valueInputOption = 'RAW';
+
+  if (mode === 'rebuild') {
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: sheetId,
+      range: `${targetTab}!A2:O`
+    });
+
+    if (rows.length) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `${targetTab}!A2:O${rows.length + 1}`,
+        valueInputOption,
+        requestBody: { values: rows }
+      });
+    }
+
+    return { appendedRows: rows.length, updatedRows: 0, clearedRows: true };
+  }
 
   if (mode !== 'upsert') {
     const result = await sheets.spreadsheets.values.append({
@@ -55,7 +74,7 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: rows }
     });
-    return { appendedRows: result.data.updates?.updatedRows || rows.length, updatedRows: 0 };
+    return { appendedRows: result.data.updates?.updatedRows || rows.length, updatedRows: 0, clearedRows: false };
   }
 
   const current = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range });
@@ -69,7 +88,7 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
     const leadId = String(row[1] || '').trim();
     const targetRow = leadIndex.get(leadId);
     if (targetRow) {
-      updates.push({ range: `${tabName || 'BASE_CRM'}!A${targetRow}:O${targetRow}`, values: [row] });
+      updates.push({ range: `${targetTab}!A${targetRow}:O${targetRow}`, values: [row] });
     } else {
       inserts.push(row);
     }
@@ -95,7 +114,7 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
     });
   }
 
-  return { appendedRows: inserts.length, updatedRows: updates.length };
+  return { appendedRows: inserts.length, updatedRows: updates.length, clearedRows: false };
 }
 
 function safePreviewRecord(record) {
@@ -129,7 +148,7 @@ export default async function handler(req, res) {
     const records = await getRecords({ integration, limit });
     const rows = records.map(record => toBaseCrmRow(record, stages));
 
-    let writeResult = { appendedRows: 0, updatedRows: 0 };
+    let writeResult = { appendedRows: 0, updatedRows: 0, clearedRows: false };
     if (writeToSheet) {
       writeResult = await writeRows({ growthpackUrl: client.growthpackUrl, tabName: client.crmTab || 'BASE_CRM', rows, mode: writeMode });
     }
@@ -142,10 +161,13 @@ export default async function handler(req, res) {
       writtenRows: writeResult.appendedRows + writeResult.updatedRows,
       appendedRows: writeResult.appendedRows,
       updatedRows: writeResult.updatedRows,
+      clearedRows: Boolean(writeResult.clearedRows),
       writeMode,
       rows,
       previewRecords: includeDiagnostics ? records.slice(0, 5).map(safePreviewRecord) : undefined,
-      message: writeToSheet ? 'Sync completed and rows were upserted into BASE_CRM.' : 'Sync completed in preview mode.'
+      message: writeToSheet
+        ? (writeMode === 'rebuild' ? 'Sync completed and target tab was rebuilt.' : 'Sync completed and rows were upserted into BASE_CRM.')
+        : 'Sync completed in preview mode.'
     });
   } catch (error) {
     return send(res, 500, { ok: false, message: error.message });
