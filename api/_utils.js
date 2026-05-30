@@ -65,6 +65,7 @@ export function toBaseCrmRow(record, stages = {}) {
     record.date || new Date().toISOString(),
     record.id || '',
     record.name || '',
+    record.companyName || '',
     Number(record.value || 0),
     stageFlag(stageValues, stages.lead || 'lead'),
     stageFlag(stageValues, stages.mql || 'mql'),
