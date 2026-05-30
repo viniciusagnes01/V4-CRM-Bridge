@@ -1,5 +1,18 @@
 const STORE = 'v4_crm_bridge_internal_v3';
 
+const crmOptions = [
+  'Moskit',
+  'Kommo',
+  'SULTS',
+  'Bitrix',
+  'C2S / Contact2Sale',
+  'HubSpot',
+  'PipeDrive',
+  'RD Station',
+  'IXC',
+  'OPA'
+];
+
 const tabs = [
   { id: 'dashboard', label: 'Visão Geral', title: 'Visão Geral', subtitle: 'Operação CRM, GrowthPack e BASE_CRM.', icon: 'i-dashboard', color: 'v4' },
   { id: 'accounts', label: 'Accounts', title: 'Accounts', subtitle: 'Responsáveis por clientes e projetos.', icon: 'i-accounts', color: 'blue' },
@@ -357,7 +370,7 @@ function pageIntegrations() {
         <h3>Nova integração</h3>
         <label>Cliente</label><select id="integrationClient">${state.clients.map(client => `<option>${escapeHtml(client.name)}</option>`).join('')}</select>
         <div class="form2">
-          <div><label>CRM</label><select id="integrationCrm"><option>Kommo</option><option>RD Station</option><option>HubSpot</option><option>Moskit</option><option>IXC</option><option>OPA</option></select></div>
+          <div><label>CRM</label><select id="integrationCrm">${crmOptions.map(crm => `<option>${escapeHtml(crm)}</option>`).join('')}</select></div>
           <div><label>Status</label><select id="integrationStatus"><option>Ativo</option><option>Pendente</option><option>Erro</option><option>Pausado</option></select></div>
         </div>
         <label>Alias seguro</label><input id="integrationAlias" required placeholder="identificador interno">
