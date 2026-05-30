@@ -128,10 +128,45 @@ function looksLikeIdentifier(value) {
   return /^\d{5,}$/.test(text) || /^[0-9a-f-]{24,}$/i.test(text);
 }
 
-function safeHumanName(value) {
+function safeText(value) {
   const text = String(value || '').trim();
   if (!text || looksLikeIdentifier(text)) return '';
   return text;
+}
+
+function isCompanyLike(value) {
+  const normalized = normalizeText(value);
+  if (!normalized) return false;
+
+  const companyTerms = [
+    'ltda', 's.a', ' sa ', 'eireli', 'mei', ' me ', 'epp', 'holding', 'grupo',
+    'empresa', 'companhia', 'cia', 'comercio', 'industria', 'servicos', 'solucoes',
+    'consultoria', 'corretora', 'seguros', 'tecnologia', 'software', 'sistemas',
+    'clinica', 'hospital', 'saude', 'medica', 'medico', 'laboratorio', 'farmacia',
+    'associacao', 'instituto', 'cooperativa', 'consorcio', 'construtora', 'imobiliaria',
+    'financeira', 'contabilidade', 'advocacia', 'engenharia', 'transportes', 'logistica',
+    'auto pecas', 'produtos', 'distribuidora', 'atacadista', 'varejo', 'supermercado'
+  ];
+
+  return companyTerms.some(term => normalized.includes(term.trim())) || /\b(cnpj|cnpj:)\b/.test(normalized);
+}
+
+function choosePersonAndCompany({ rawPersonName, rawCompanyName, dealName }) {
+  const explicitPerson = safeText(rawPersonName);
+  const explicitCompany = safeText(rawCompanyName);
+  const deal = safeText(dealName);
+
+  let personName = explicitPerson;
+  let companyName = explicitCompany;
+
+  if (!personName && deal && !isCompanyLike(deal)) personName = deal;
+  if (!companyName && deal && isCompanyLike(deal)) companyName = deal;
+
+  if (companyName && personName && normalizeText(companyName) === normalizeText(personName) && !isCompanyLike(companyName)) {
+    companyName = '';
+  }
+
+  return { personName, companyName };
 }
 
 function uniqueById(items) {
@@ -207,9 +242,8 @@ function normalizeDeal(raw, context = {}) {
   const companyId = firstId(raw.companies) || firstId(raw.company) || firstId(raw.organization) || firstId(raw.account);
 
   const rawPersonName = pickText(raw, ['contact.name', 'person.name', 'customer.name', 'lead.name']) || mapName(contactId, context.contacts);
-  const personName = safeHumanName(rawPersonName);
-  const rawCompanyName = pickText(raw, ['company.name', 'organization.name', 'account.name']) || mapName(companyId, context.companies) || dealName;
-  const companyName = safeHumanName(rawCompanyName) || dealName;
+  const rawCompanyName = pickText(raw, ['company.name', 'organization.name', 'account.name']) || mapName(companyId, context.companies);
+  const { personName, companyName } = choosePersonAndCompany({ rawPersonName, rawCompanyName, dealName });
 
   const ownerId = String(pickText(raw, ['responsible.id', 'owner.id', 'user.id', 'responsibleUser.id'], '', true) || pickText(raw, ['responsible', 'owner'], '', true));
   const owner = pickText(raw, ['responsible.name', 'owner.name', 'user.name', 'responsibleUser.name']) || mapName(ownerId, context.users) || mapId(ownerId, context.users);
