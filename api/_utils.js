@@ -51,27 +51,27 @@ export function normalizeText(value) {
     .trim();
 }
 
-export function stageFlag(stage, target) {
-  if (!stage || !target) return 0;
-  const current = normalizeText(stage);
+export function stageFlag(stageValues, target) {
+  if (!stageValues || !target) return 0;
+  const currents = Array.isArray(stageValues) ? stageValues : [stageValues];
   const targets = Array.isArray(target) ? target : String(target).split('|');
-  return targets.some(item => normalizeText(item) === current) ? 1 : 0;
+  return currents.some(current => targets.some(item => normalizeText(item) === normalizeText(current))) ? 1 : 0;
 }
 
 export function toBaseCrmRow(record, stages = {}) {
   const source = normalizeSource(record.source);
+  const stageValues = [record.stage, record.stageId].filter(Boolean);
   return [
     record.date || new Date().toISOString(),
     record.id || '',
     record.name || '',
-    record.companyName || '',
     Number(record.value || 0),
-    stageFlag(record.stage, stages.lead || 'lead'),
-    stageFlag(record.stage, stages.mql || 'mql'),
-    stageFlag(record.stage, stages.sql || 'sql'),
-    stageFlag(record.stage, stages.opportunity || 'oportunidade'),
-    stageFlag(record.stage, stages.won || 'compra'),
-    stageFlag(record.stage, stages.lost || 'perdido'),
+    stageFlag(stageValues, stages.lead || 'lead'),
+    stageFlag(stageValues, stages.mql || 'mql'),
+    stageFlag(stageValues, stages.sql || 'sql'),
+    stageFlag(stageValues, stages.opportunity || 'oportunidade'),
+    stageFlag(stageValues, stages.won || 'compra'),
+    stageFlag(stageValues, stages.lost || 'perdido'),
     source.meta,
     source.google,
     record.owner || '',
