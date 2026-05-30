@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { fetchKommoLeads } from './_kommo.js';
+import { fetchMoskitDeals } from './_moskit.js';
 import { extractSheetId, getGoogleAuth, readJson, send, toBaseCrmRow } from './_utils.js';
 
 function sampleRecords() {
@@ -11,12 +12,20 @@ function sampleRecords() {
 }
 
 async function getRecords({ integration, limit }) {
-  const crm = integration.crm || 'mock';
+  const crm = String(integration.crm || 'mock').toLowerCase();
+
   if (crm === 'kommo') {
     const alias = integration.credentialAlias || integration.tokenAlias || '';
     const key = alias ? process.env[alias] : process.env.KOMMO_ACCESS_KEY;
     return fetchKommoLeads({ baseUrl: integration.baseUrl, accessKey: key, limit });
   }
+
+  if (crm === 'moskit') {
+    const alias = integration.credentialAlias || integration.tokenAlias || '';
+    const key = alias ? process.env[alias] : process.env.MOSKIT_ACCESS_KEY;
+    return fetchMoskitDeals({ baseUrl: integration.baseUrl, accessKey: key, limit });
+  }
+
   return sampleRecords();
 }
 
@@ -26,7 +35,7 @@ async function writeRows({ growthpackUrl, tabName, rows }) {
   const sheets = google.sheets({ version: 'v4', auth: getGoogleAuth() });
   const result = await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: `${tabName || 'BASE_CRM'}!A:N`,
+    range: `${tabName || 'BASE_CRM'}!A:O`,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: { values: rows }
