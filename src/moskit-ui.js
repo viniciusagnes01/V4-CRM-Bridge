@@ -2,7 +2,7 @@
   const PANEL_ID = 'v4-moskit-real-sync-panel';
   const SHEET_ID = '1KLxctUK2ZGaM7jm1y2zj-StwLTgV6qP0PL1a-ZEnMmo';
   const TAB_KEY = 'v4_crm_bridge_target_tab';
-  const DEFAULT_LIMIT = 2000;
+  const DEFAULT_LIMIT = 5000;
 
   function isSyncPage() {
     const title = document.querySelector('.top h2');
