@@ -31,6 +31,19 @@ function pickNumber(obj, paths, fallback = 0) {
   return fallback;
 }
 
+function firstArrayText(obj, paths, allowId = false) {
+  for (const path of paths) {
+    const value = readPath(obj, path);
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const text = asText(item, allowId);
+        if (text) return text;
+      }
+    }
+  }
+  return '';
+}
+
 function formatDate(value) {
   const fallback = new Date();
   const date = value ? new Date(value) : fallback;
@@ -47,6 +60,28 @@ function formatDate(value) {
   if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
 
   return text;
+}
+
+function listFromResponse(data) {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== 'object') return [];
+  return data.items || data.data || data.deals || data.results || data.content || data.users || data.reasons || data.lostReasons || data.lossReasons || [];
+}
+
+function buildIdNameMap(items) {
+  const map = {};
+  (items || []).forEach(item => {
+    const id = pickText(item, ['id', 'uuid', 'userId', 'responsibleId', 'reasonId'], '', true);
+    const name = pickText(item, ['name', 'title', 'label', 'fullName', 'displayName', 'description', 'reason', 'email'], '', false);
+    if (id && name) map[String(id)] = name;
+  });
+  return map;
+}
+
+function mapId(value, map) {
+  const key = String(value || '').trim();
+  if (!key) return '';
+  return map && map[key] ? map[key] : key;
 }
 
 function stageDiagnostics(raw) {
@@ -79,7 +114,7 @@ function lossReasonDiagnostics(raw) {
     .filter(item => item.value);
 }
 
-function normalizeDeal(raw) {
+function normalizeDeal(raw, context = {}) {
   const stageName = pickText(raw, [
     'stage.name', 'stage.title', 'stage.label', 'stage',
     'stageName',
@@ -101,28 +136,50 @@ function normalizeDeal(raw) {
     'dealStatus.id'
   ], '', true);
 
-  const lossReason = pickText(raw, [
+  const dealName = pickText(raw, ['name', 'title', 'dealName'], 'Negocio sem nome');
+  const personName = pickText(raw, [
+    'person.name', 'contact.name', 'customer.name', 'lead.name', 'primaryContact.name', 'mainContact.name'
+  ]) || firstArrayText(raw, ['contacts', 'contactParticipants', 'people', 'persons']);
+  const companyName = pickText(raw, [
+    'company.name', 'organization.name', 'entity.name', 'business.name', 'account.name'
+  ]) || firstArrayText(raw, ['companies', 'organizations', 'accounts']) || dealName;
+
+  const ownerRaw = pickText(raw, ['responsible.name', 'owner.name', 'user.name', 'responsibleUser.name']) || pickText(raw, ['responsible.id', 'owner.id', 'user.id', 'responsibleUser.id'], '', true);
+  const owner = mapId(ownerRaw, context.ownerMap);
+
+  const lossReasonRaw = pickText(raw, [
     'lostReason.name', 'lostReason.title', 'lostReason.label', 'lostReason.reason', 'lostReason.description', 'lostReason.text',
     'lossReason.name', 'lossReason.title', 'lossReason.label', 'lossReason.reason', 'lossReason.description', 'lossReason.text',
     'lostReason', 'lossReason', 'lost_reason', 'loss_reason', 'reasonLost', 'reason_lost',
     'statusReason.name', 'statusReason', 'closeReason.name', 'closeReason'
   ], '', true);
+  const lossReason = mapId(lossReasonRaw, context.lossReasonMap);
 
   return {
     id: pickText(raw, ['id', 'dealId', 'uuid', 'externalId'], '', true),
-    name: pickText(raw, ['name', 'title', 'dealName'], 'Negocio sem nome'),
-    companyName: pickText(raw, ['company.name', 'organization.name', 'person.name', 'customer.name', 'entity.name', 'companies', 'contacts']),
+    name: personName || '',
+    companyName,
     value: pickNumber(raw, ['value', 'price', 'amount', 'dealValue'], 0),
     stage: stageName || stageId,
     stageId,
     date: formatDate(pickText(raw, ['createdAt', 'created_at', 'dateCreated', 'createdDate'])),
-    owner: pickText(raw, ['responsible.name', 'owner.name', 'user.name', 'responsibleUser.name']) || pickText(raw, ['responsible.id', 'owner.id', 'user.id', 'responsibleUser.id'], '', true),
+    owner,
     source: pickText(raw, ['source.name', 'origin.name', 'leadSource.name', 'source', 'origin', 'leadSource']),
     lossReason,
     _diagnostics: {
       keys: Object.keys(raw).slice(0, 60),
       stageCandidates: stageDiagnostics(raw),
-      lossReasonCandidates: lossReasonDiagnostics(raw)
+      lossReasonCandidates: lossReasonDiagnostics(raw),
+      personCandidates: [
+        { path: 'contacts', value: firstArrayText(raw, ['contacts'], true) },
+        { path: 'contactParticipants', value: firstArrayText(raw, ['contactParticipants'], true) },
+        { path: 'person.name', value: pickText(raw, ['person.name']) }
+      ].filter(item => item.value),
+      companyCandidates: [
+        { path: 'companies', value: firstArrayText(raw, ['companies'], true) },
+        { path: 'company.name', value: pickText(raw, ['company.name']) },
+        { path: 'name', value: dealName }
+      ].filter(item => item.value)
     }
   };
 }
@@ -147,6 +204,44 @@ async function requestMoskit({ url, accessKey }) {
   return JSON.parse(text);
 }
 
+async function tryRequestMoskit(args) {
+  try {
+    return await requestMoskit(args);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCatalogMap({ accessKey, urls }) {
+  for (const url of urls) {
+    const data = await tryRequestMoskit({ url, accessKey });
+    const list = listFromResponse(data);
+    const map = buildIdNameMap(list);
+    if (Object.keys(map).length) return map;
+  }
+  return {};
+}
+
+async function fetchDealDetails({ base, accessKey, deals }) {
+  const detailed = [];
+  for (const deal of deals) {
+    const id = pickText(deal, ['id', 'dealId', 'uuid', 'externalId'], '', true);
+    if (!id) {
+      detailed.push(deal);
+      continue;
+    }
+
+    const urls = [`${base}/v1/deals/${id}`, `${base}/v2/deals/${id}`, `${base}/deals/${id}`];
+    let detail = null;
+    for (const url of urls) {
+      detail = await tryRequestMoskit({ url, accessKey });
+      if (detail) break;
+    }
+    detailed.push(detail || deal);
+  }
+  return detailed;
+}
+
 export async function fetchMoskitDeals({ accessKey, limit = 50, baseUrl }) {
   if (!accessKey) throw new Error('Moskit credential is required');
 
@@ -162,10 +257,20 @@ export async function fetchMoskitDeals({ accessKey, limit = 50, baseUrl }) {
   for (const url of candidateUrls) {
     try {
       const data = await requestMoskit({ url, accessKey });
-      const list = Array.isArray(data)
-        ? data
-        : data.items || data.data || data.deals || data.results || data.content || [];
-      if (Array.isArray(list)) return list.slice(0, limit).map(normalizeDeal);
+      const list = listFromResponse(data);
+      if (Array.isArray(list)) {
+        const selected = list.slice(0, limit);
+        const ownerMap = await fetchCatalogMap({
+          accessKey,
+          urls: [`${base}/v1/users?limit=500`, `${base}/v2/users?limit=500`, `${base}/users?limit=500`, `${base}/v1/employees?limit=500`, `${base}/employees?limit=500`]
+        });
+        const lossReasonMap = await fetchCatalogMap({
+          accessKey,
+          urls: [`${base}/v1/lostReasons?limit=500`, `${base}/v2/lostReasons?limit=500`, `${base}/lostReasons?limit=500`, `${base}/v1/lossReasons?limit=500`, `${base}/lossReasons?limit=500`, `${base}/v1/dealLostReasons?limit=500`]
+        });
+        const details = await fetchDealDetails({ base, accessKey, deals: selected });
+        return details.map(item => normalizeDeal(item, { ownerMap, lossReasonMap }));
+      }
     } catch (error) {
       lastError = error;
     }
