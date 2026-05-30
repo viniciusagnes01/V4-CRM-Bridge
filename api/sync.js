@@ -38,6 +38,12 @@ function buildLeadIndex(values) {
   return index;
 }
 
+function chunk(items, size) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
 async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
   const sheetId = extractSheetId(growthpackUrl);
   if (!sheetId) throw new Error('Missing GrowthPack URL or Sheet ID');
@@ -54,12 +60,16 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
       range: `${targetTab}!A2:O50000`
     });
 
-    if (rows.length) {
+    const batches = chunk(rows, 400);
+    for (let index = 0; index < batches.length; index++) {
+      const batch = batches[index];
+      const startRow = 2 + index * 400;
+      const endRow = startRow + batch.length - 1;
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `${targetTab}!A2:O${rows.length + 1}`,
+        range: `${targetTab}!A${startRow}:O${endRow}`,
         valueInputOption,
-        requestBody: { values: rows }
+        requestBody: { values: batch }
       });
     }
 
@@ -94,24 +104,28 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
     }
   });
 
-  if (updates.length) {
+  const updateBatches = chunk(updates, 300);
+  for (const batch of updateBatches) {
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: sheetId,
       requestBody: {
         valueInputOption,
-        data: updates
+        data: batch
       }
     });
   }
 
   if (inserts.length) {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: sheetId,
-      range,
-      valueInputOption,
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: { values: inserts }
-    });
+    const insertBatches = chunk(inserts, 400);
+    for (const batch of insertBatches) {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: sheetId,
+        range,
+        valueInputOption,
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: { values: batch }
+      });
+    }
   }
 
   return { appendedRows: inserts.length, updatedRows: updates.length, clearedRows: false };
@@ -168,13 +182,14 @@ export default async function handler(req, res) {
       clearedRows: Boolean(writeResult.clearedRows),
       writeMode,
       requestedMode,
-      rows,
+      rows: writeToSheet ? undefined : rows.slice(0, 100),
+      previewRowsReturned: writeToSheet ? 0 : Math.min(rows.length, 100),
       previewRecords: includeDiagnostics ? records.slice(0, 5).map(safePreviewRecord) : undefined,
       message: writeToSheet
         ? (writeMode === 'rebuild' ? 'Sync completed and target tab was rebuilt.' : 'Sync completed and rows were upserted into BASE_CRM.')
         : 'Sync completed in preview mode.'
     });
   } catch (error) {
-    return send(res, 500, { ok: false, message: error.message });
+    return send(res, 500, { ok: false, message: error.message, stack: process.env.NODE_ENV === 'development' ? error.stack : undefined });
   }
 }
