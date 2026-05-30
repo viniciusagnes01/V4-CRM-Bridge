@@ -1,0 +1,16 @@
+{
+  "name": "v4-crm-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "V4 CRM Bridge web system with serverless sync backend.",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "googleapis": "^140.0.1"
+  },
+  "devDependencies": {
+    "vercel": "^37.6.0"
+  }
+}
