@@ -18,6 +18,7 @@ const STAGE_MAP_V4_TRAFEGO = {
 
 const REQUEST_DELAY_MS = 350;
 const RATE_LIMIT_RETRY_MS = [1500, 3500, 7000];
+const V4_TRAFEGO_PIPELINE_NAME = 'V4 - Tráfego';
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -169,6 +170,44 @@ function choosePersonAndCompany({ rawPersonName, rawCompanyName, dealName }) {
   return { personName, companyName };
 }
 
+function pipelineIdFromDeal(raw) {
+  return pickText(raw, [
+    'pipeline.id', 'pipelineId', 'pipeline_id',
+    'funnel.id', 'funnelId', 'funnel_id',
+    'dealPipeline.id', 'dealPipelineId', 'businessPipeline.id',
+    'board.id', 'boardId'
+  ], '', true);
+}
+
+function pipelineNameFromDeal(raw) {
+  return pickText(raw, [
+    'pipeline.name', 'pipeline.title', 'pipeline.label',
+    'funnel.name', 'funnel.title', 'funnel.label',
+    'dealPipeline.name', 'dealPipeline.title', 'businessPipeline.name',
+    'board.name', 'board.title'
+  ]);
+}
+
+function isV4TrafficPipeline(raw, targetPipelineId = '') {
+  const pipelineId = String(pipelineIdFromDeal(raw) || '').trim();
+  const pipelineName = pipelineNameFromDeal(raw);
+  const normalizedName = normalizeText(pipelineName);
+
+  if (targetPipelineId && pipelineId) return pipelineId === String(targetPipelineId).trim();
+  if (normalizedName) return normalizedName.includes('v4') && normalizedName.includes('trafego');
+
+  return true;
+}
+
+function pipelineDiagnostics(raw) {
+  const candidates = [
+    'pipeline', 'pipeline.id', 'pipeline.name', 'pipeline.title', 'pipelineId', 'pipeline_id',
+    'funnel', 'funnel.id', 'funnel.name', 'funnel.title', 'funnelId', 'funnel_id',
+    'dealPipeline', 'dealPipeline.id', 'dealPipeline.name', 'board', 'board.id', 'board.name'
+  ];
+  return candidates.map(path => ({ path, value: asText(readPath(raw, path), true) })).filter(item => item.value);
+}
+
 function uniqueById(items) {
   const seen = new Set();
   const unique = [];
@@ -278,11 +317,14 @@ function normalizeDeal(raw, context = {}) {
     },
     _diagnostics: {
       stageCandidates: stageDiagnostics(raw),
+      pipelineCandidates: pipelineDiagnostics(raw),
       lossReasonCandidates: lossReasonDiagnostics(raw),
       contactId,
       companyId,
       ownerId,
-      lostReasonId
+      lostReasonId,
+      pipelineId: pipelineIdFromDeal(raw),
+      pipelineName: pipelineNameFromDeal(raw)
     }
   };
 }
@@ -395,13 +437,18 @@ async function fetchAllDeals({ base, accessKey, limit }) {
   return uniqueById(all).slice(0, max);
 }
 
-export async function fetchMoskitDeals({ accessKey, limit = 2000, baseUrl }) {
+export async function fetchMoskitDeals({ accessKey, limit = 2000, baseUrl, pipelineId }) {
   if (!accessKey) throw new Error('Moskit credential is required');
 
   const base = (baseUrl || 'https://api.moskitcrm.com/v2').replace(/\/$/, '');
   const allDeals = await fetchAllDeals({ base, accessKey, limit });
   const stageIds = Object.keys(STAGE_MAP_V4_TRAFEGO);
-  const filtered = allDeals.filter(deal => stageIds.includes(String(readPath(deal, 'stage.id') || '')));
+  const targetPipelineId = pipelineId || process.env.MOSKIT_PIPELINE_ID || '';
+  const filtered = allDeals.filter(deal => {
+    const stageId = String(readPath(deal, 'stage.id') || '');
+    if (!stageIds.includes(stageId)) return false;
+    return isV4TrafficPipeline(deal, targetPipelineId);
+  });
 
   const ids = collectReferenceIds(filtered);
   const users = await fetchCatalogMap({ base, accessKey, listEndpoints: ['/users'], byIdEndpoints: ['/users/{id}'], ids: Object.keys(ids.users), maxPages: 2, maxById: 60 });
