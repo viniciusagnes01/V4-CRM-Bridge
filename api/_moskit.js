@@ -65,25 +65,6 @@ function firstId(value) {
   return '';
 }
 
-function firstArrayText(obj, paths, contextMap = {}) {
-  for (const path of paths) {
-    const value = readPath(obj, path);
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        const id = firstId(item);
-        if (id && contextMap[String(id)]) return contextMap[String(id)];
-        const text = asText(item, false);
-        if (text) return text;
-      }
-    }
-    const id = firstId(value);
-    if (id && contextMap[String(id)]) return contextMap[String(id)];
-    const text = asText(value, false);
-    if (text) return text;
-  }
-  return '';
-}
-
 function formatDate(value) {
   const fallback = new Date();
   const date = value ? new Date(value) : fallback;
@@ -324,21 +305,6 @@ async function fetchAllDeals({ base, accessKey, limit }) {
   return uniqueById(all).slice(0, max);
 }
 
-async function fetchDealDetails({ base, accessKey, deals }) {
-  const detailed = [];
-  for (const deal of deals) {
-    const id = pickText(deal, ['id', 'dealId', 'uuid', 'externalId'], '', true);
-    if (!id) {
-      detailed.push(deal);
-      continue;
-    }
-
-    const data = await tryRequestMoskit({ url: `${base}/deals/${encodeURIComponent(String(id))}`, accessKey });
-    detailed.push(data || deal);
-  }
-  return detailed;
-}
-
 export async function fetchMoskitDeals({ accessKey, limit = 2000, baseUrl }) {
   if (!accessKey) throw new Error('Moskit credential is required');
 
@@ -353,6 +319,5 @@ export async function fetchMoskitDeals({ accessKey, limit = 2000, baseUrl }) {
   const contacts = await fetchCatalogMap({ base, accessKey, listEndpoints: ['/contacts'], byIdEndpoints: ['/contacts/{id}'], ids: Object.keys(ids.contacts) });
   const lostReasons = await fetchCatalogMap({ base, accessKey, listEndpoints: ['/lostReasons', '/lossReasons', '/dealLostReasons', '/dealLossReasons'], byIdEndpoints: ['/lostReasons/{id}', '/lossReasons/{id}', '/dealLostReasons/{id}', '/dealLossReasons/{id}'], ids: Object.keys(ids.lostReasons) });
 
-  const detailed = await fetchDealDetails({ base, accessKey, deals: filtered });
-  return detailed.map(deal => normalizeDeal(deal, { users, companies, contacts, lostReasons }));
+  return filtered.map(deal => normalizeDeal(deal, { users, companies, contacts, lostReasons }));
 }
