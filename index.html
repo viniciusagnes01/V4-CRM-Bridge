@@ -1,0 +1,1275 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#050505" />
+  <title>V4 CRM Bridge · Sistema</title>
+  <style>
+    :root {
+      --bg: #050505;
+      --bg-2: #080a07;
+      --surface: #0d100c;
+      --surface-2: #12160f;
+      --surface-3: #171d13;
+      --line: #263020;
+      --line-2: rgba(183, 255, 42, .18);
+      --text: #f6f8f2;
+      --muted: #9da997;
+      --muted-2: #6f796b;
+      --green: #b7ff2a;
+      --green-2: #7dff00;
+      --green-3: #dbff8a;
+      --danger: #ff5c5c;
+      --warning: #ffcf6b;
+      --ok: #76ff9f;
+      --info: #75b7ff;
+      --shadow: 0 24px 90px rgba(0,0,0,.5);
+      --shadow-soft: 0 12px 40px rgba(0,0,0,.28);
+      --radius-xl: 28px;
+      --radius: 20px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
+      --sidebar: 292px;
+      --topbar: 74px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font);
+      background:
+        radial-gradient(circle at top left, rgba(183,255,42,.18), transparent 28rem),
+        radial-gradient(circle at 82% 12%, rgba(125,255,0,.09), transparent 24rem),
+        linear-gradient(180deg, #050505 0%, #070906 50%, #050505 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.45), transparent 62%);
+      z-index: 0;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    a { color: var(--green); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    ::selection { background: rgba(183,255,42,.3); color: var(--text); }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+      position: relative;
+      z-index: 1;
+    }
+
+    .sidebar {
+      min-height: 100vh;
+      position: sticky;
+      top: 0;
+      align-self: start;
+      padding: 22px 18px;
+      border-right: 1px solid var(--line);
+      background: rgba(5, 5, 5, .78);
+      backdrop-filter: blur(18px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding: 10px 8px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .logo {
+      width: 50px;
+      height: 50px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--green), var(--green-2));
+      color: #050505;
+      font-weight: 1000;
+      letter-spacing: -2px;
+      box-shadow: 0 18px 54px rgba(183,255,42,.26);
+      flex: 0 0 auto;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .brand p {
+      margin: 5px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .nav-title {
+      margin: 2px 8px 0;
+      color: var(--muted-2);
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      font-weight: 900;
+    }
+
+    .nav {
+      display: grid;
+      gap: 7px;
+    }
+
+    .nav button {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 15px;
+      background: transparent;
+      color: var(--muted);
+      padding: 12px 12px;
+      cursor: pointer;
+      text-align: left;
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      align-items: center;
+      gap: 9px;
+      transition: .16s ease;
+    }
+
+    .nav button:hover,
+    .nav button.active {
+      color: var(--text);
+      background: rgba(183,255,42,.075);
+      border-color: rgba(183,255,42,.19);
+      transform: translateX(2px);
+    }
+
+    .nav button.active { box-shadow: inset 0 0 0 1px rgba(183,255,42,.06); }
+    .nav-ico { font-size: 17px; }
+    .nav-label { font-size: 14px; font-weight: 850; }
+    .nav-count {
+      font-size: 11px;
+      font-weight: 900;
+      color: #050505;
+      background: var(--green);
+      min-width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 99px;
+      padding: 0 6px;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      display: grid;
+      gap: 10px;
+    }
+
+    .operator {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255,255,255,.025);
+    }
+
+    .operator strong { display: block; font-size: 14px; }
+    .operator span { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; word-break: break-word; }
+
+    .main {
+      min-width: 0;
+      padding: 22px clamp(14px, 2.4vw, 32px) 56px;
+    }
+
+    .topbar {
+      min-height: var(--topbar);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      padding: 10px 0;
+      background: linear-gradient(180deg, rgba(5,5,5,.94), rgba(5,5,5,.66), transparent);
+      backdrop-filter: blur(12px);
+    }
+
+    .mobile-menu-btn { display: none; }
+
+    .page-title h2 {
+      margin: 0;
+      font-size: clamp(26px, 4.2vw, 48px);
+      line-height: 1;
+      letter-spacing: -2.2px;
+    }
+
+    .page-title p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(183,255,42,.28);
+      color: var(--green);
+      background: rgba(183,255,42,.08);
+      border-radius: 999px;
+      padding: 10px 13px;
+      font-size: 12px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 15px;
+      font-weight: 950;
+      cursor: pointer;
+      transition: transform .16s ease, opacity .16s ease, border-color .16s ease, background .16s ease;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+    .btn-primary { background: var(--green); color: #050505; }
+    .btn-secondary { background: #171d13; color: var(--text); border: 1px solid var(--line); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+    .btn-danger { background: rgba(255,92,92,.12); color: #ffaaaa; border: 1px solid rgba(255,92,92,.25); }
+    .btn-warning { background: rgba(255,207,107,.12); color: #ffe1a6; border: 1px solid rgba(255,207,107,.28); }
+    .btn-small { min-height: 34px; padding: 8px 10px; border-radius: 11px; font-size: 12px; }
+
+    .tab { display: none; animation: rise .22s ease; }
+    .tab.active { display: block; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(310px, .72fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(19,24,16,.92), rgba(10,12,9,.94));
+      box-shadow: var(--shadow-soft);
+      padding: clamp(16px, 2vw, 22px);
+      min-width: 0;
+    }
+
+    .card.compact { padding: 16px; border-radius: var(--radius); }
+    .card-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .card-title h3 { margin: 0; font-size: 18px; letter-spacing: -.5px; }
+    .card-title p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .card-title small { color: var(--muted-2); white-space: nowrap; }
+
+    .headline {
+      font-size: clamp(34px, 5.2vw, 70px);
+      line-height: .93;
+      letter-spacing: -3.4px;
+      margin: 0 0 14px;
+    }
+    .headline span { color: var(--green); }
+    .lead { color: var(--muted); margin: 0; line-height: 1.65; max-width: 72ch; }
+
+    .flow {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.026);
+      color: var(--text);
+      padding: 9px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .pill.green { color: var(--green); border-color: rgba(183,255,42,.22); background: rgba(183,255,42,.07); }
+    .pill.red { color: #ffb1b1; border-color: rgba(255,92,92,.25); background: rgba(255,92,92,.08); }
+    .pill.yellow { color: #ffe0a3; border-color: rgba(255,207,107,.25); background: rgba(255,207,107,.08); }
+    .pill.blue { color: #b9dbff; border-color: rgba(117,183,255,.25); background: rgba(117,183,255,.08); }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .kpi {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.026);
+      padding: 16px;
+      min-width: 0;
+    }
+    .kpi-top { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .kpi span { color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: .05em; }
+    .kpi strong { display: block; font-size: clamp(24px, 3vw, 38px); letter-spacing: -1.4px; margin-top: 12px; color: var(--green); line-height: 1; }
+    .kpi em { display: block; font-style: normal; color: var(--muted-2); font-size: 12px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .grid-main { display: grid; grid-template-columns: minmax(330px, .82fr) minmax(0, 1.18fr); gap: 18px; align-items: start; }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .075em;
+      margin: 12px 0 7px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      color: var(--text);
+      background: #080a08;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 12px 13px;
+      outline: none;
+      min-height: 44px;
+    }
+
+    textarea { min-height: 92px; resize: vertical; line-height: 1.45; }
+    input:focus, select:focus, textarea:focus { border-color: rgba(183,255,42,.7); box-shadow: 0 0 0 4px rgba(183,255,42,.08); }
+    input::placeholder, textarea::placeholder { color: #5f695c; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+    .form-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+    .notice {
+      border: 1px solid rgba(255,207,107,.28);
+      background: rgba(255,207,107,.08);
+      color: #ffe1a6;
+      border-radius: 16px;
+      padding: 14px;
+      line-height: 1.55;
+      font-size: 13px;
+      margin-top: 14px;
+    }
+
+    .notice.green { border-color: rgba(183,255,42,.22); background: rgba(183,255,42,.07); color: var(--green-3); }
+    .notice.red { border-color: rgba(255,92,92,.28); background: rgba(255,92,92,.08); color: #ffb4b4; }
+
+    .list { display: grid; gap: 12px; }
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,.026);
+      padding: 15px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+    }
+    .item h4 { margin: 0 0 6px; font-size: 16px; letter-spacing: -.3px; }
+    .item p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+    .item-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 950;
+      padding: 7px 9px;
+      margin-top: 10px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted-2); }
+    .status.ok .dot { background: var(--ok); }
+    .status.error .dot { background: var(--danger); }
+    .status.pending .dot { background: var(--warning); }
+    .status.running .dot { background: var(--info); }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,.02);
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    th, td { text-align: left; padding: 13px 12px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: top; }
+    th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; background: rgba(255,255,255,.025); position: sticky; top: 0; z-index: 1; }
+    tr:last-child td { border-bottom: 0; }
+    td { color: var(--text); }
+    td.muted { color: var(--muted); }
+
+    .mini-chart {
+      display: grid;
+      gap: 10px;
+    }
+    .bar-row { display: grid; grid-template-columns: 112px 1fr 42px; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+    .bar-bg { height: 10px; border-radius: 99px; background: rgba(255,255,255,.06); overflow: hidden; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--green-2)); border-radius: 99px; width: 0%; transition: width .25s ease; }
+
+    .kanban {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(240px, 1fr));
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 3px;
+    }
+    .lane { border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.025); padding: 12px; min-height: 280px; }
+    .lane h4 { margin: 0 0 12px; display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+    .task { border: 1px solid var(--line); border-radius: 14px; background: #0a0d09; padding: 12px; margin-bottom: 10px; }
+    .task strong { display: block; font-size: 13px; margin-bottom: 5px; }
+    .task span { display: block; color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+    .logs { display: grid; gap: 8px; max-height: 520px; overflow: auto; padding-right: 3px; }
+    .log { border-left: 3px solid var(--line); background: rgba(255,255,255,.025); border-radius: 13px; padding: 11px 12px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .log strong { color: var(--text); }
+    .log.success { border-color: var(--ok); }
+    .log.error { border-color: var(--danger); }
+    .log.running { border-color: var(--warning); }
+    .log.info { border-color: var(--info); }
+
+    .empty {
+      border: 1px dashed rgba(183,255,42,.22);
+      border-radius: 18px;
+      padding: 18px;
+      color: var(--muted);
+      background: rgba(183,255,42,.035);
+      line-height: 1.55;
+      font-size: 13px;
+    }
+
+    .split-action { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    .mobile-tabs {
+      display: none;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 90;
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+      background: rgba(5,5,5,.92);
+      border-top: 1px solid var(--line);
+      backdrop-filter: blur(16px);
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+    .mobile-tabs button {
+      min-width: 0;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      background: transparent;
+      color: var(--muted);
+      padding: 8px 4px;
+      font-size: 10px;
+      font-weight: 850;
+      display: grid;
+      gap: 2px;
+      place-items: center;
+    }
+    .mobile-tabs button.active { color: var(--green); border-color: rgba(183,255,42,.22); background: rgba(183,255,42,.07); }
+    .mobile-tabs span { font-size: 17px; }
+
+    .drawer-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.56);
+      z-index: 95;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 120;
+      max-width: min(420px, calc(100vw - 36px));
+      border: 1px solid rgba(183,255,42,.25);
+      background: rgba(13,16,12,.95);
+      color: var(--text);
+      border-radius: 18px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+      display: none;
+      line-height: 1.4;
+    }
+    .toast.show { display: block; animation: rise .2s ease; }
+
+    .field-map-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 10px;
+    }
+
+    .footer {
+      margin-top: 24px;
+      color: var(--muted-2);
+      text-align: center;
+      font-size: 12px;
+      padding-bottom: 4px;
+    }
+
+    code {
+      color: var(--green);
+      background: rgba(183,255,42,.08);
+      border: 1px solid rgba(183,255,42,.16);
+      border-radius: 8px;
+      padding: 2px 6px;
+      font-size: .92em;
+    }
+
+    @media (max-width: 1180px) {
+      .shell { grid-template-columns: 246px minmax(0, 1fr); }
+      :root { --sidebar: 246px; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .hero-grid { grid-template-columns: 1fr; }
+      .headline { max-width: 900px; }
+    }
+
+    @media (max-width: 940px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar {
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        bottom: 12px;
+        width: min(330px, calc(100vw - 24px));
+        z-index: 100;
+        transform: translateX(calc(-100% - 24px));
+        transition: transform .2s ease;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        min-height: auto;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .drawer-backdrop.show { display: block; }
+      .main { padding: 14px 14px 86px; }
+      .mobile-menu-btn { display: inline-flex; }
+      .topbar { align-items: flex-start; }
+      .top-actions { gap: 8px; }
+      .badge { display: none; }
+      .grid-main, .grid-2 { grid-template-columns: 1fr; }
+      .item { grid-template-columns: 1fr; }
+      .item-actions { justify-content: flex-start; }
+      .mobile-tabs { display: grid; }
+      .toast { bottom: 86px; }
+    }
+
+    @media (max-width: 680px) {
+      .topbar { flex-direction: column; align-items: stretch; position: relative; background: transparent; backdrop-filter: none; }
+      .top-actions { justify-content: stretch; }
+      .top-actions .btn, .top-actions .split-action, .top-actions .split-action .btn { width: 100%; }
+      .page-title h2 { font-size: 32px; letter-spacing: -1.4px; }
+      .headline { font-size: 38px; letter-spacing: -2px; }
+      .kpi-grid, .grid-3, .grid-4, .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+      .card { border-radius: 22px; padding: 15px; }
+      .card-title { flex-direction: column; align-items: stretch; }
+      .bar-row { grid-template-columns: 88px 1fr 34px; font-size: 12px; }
+      .field-map-row { grid-template-columns: 1fr; }
+      .btn-row .btn { width: 100%; }
+      .flow { gap: 7px; }
+      .pill { font-size: 11px; padding: 8px 9px; }
+      table { min-width: 680px; }
+    }
+
+    @media (max-width: 420px) {
+      .main { padding-left: 10px; padding-right: 10px; }
+      .logo { width: 44px; height: 44px; border-radius: 14px; }
+      .brand h1 { font-size: 19px; }
+      .headline { font-size: 34px; }
+      .kpi strong { font-size: 28px; }
+      input, select, textarea, .btn { min-height: 46px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="drawer-backdrop" id="drawerBackdrop" onclick="toggleSidebar(false)"></div>
+  <div class="toast" id="toast"></div>
+
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="logo">V4</div>
+        <div>
+          <h1>CRM Bridge</h1>
+          <p>Sistema interno · GrowthOps</p>
+        </div>
+      </div>
+
+      <div class="nav-title">Operação</div>
+      <nav class="nav" id="nav"></nav>
+
+      <div class="sidebar-footer">
+        <div class="operator">
+          <strong id="sideOperator">Vinicius Agnes</strong>
+          <span id="sideEmail">vinicius.agnes@v4company.com</span>
+        </div>
+        <button class="btn btn-secondary" onclick="loadSeedData()">⚡ Carregar dados demo</button>
+        <button class="btn btn-ghost" onclick="exportState()">⬇️ Exportar base JSON</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="page-title">
+          <h2 id="pageTitle">Visão Geral</h2>
+          <p id="pageSubtitle">Cockpit de integrações CRM → GrowthPack → BASE_CRM para accounts e projetos.</p>
+        </div>
+        <div class="top-actions">
+          <button class="btn btn-secondary mobile-menu-btn" onclick="toggleSidebar(true)">☰ Menu</button>
+          <span class="badge">Modo V4 On · Sistema Web</span>
+          <div class="split-action">
+            <button class="btn btn-primary" onclick="goTab('sync')">▶ Sincronizar</button>
+            <button class="btn btn-secondary" onclick="goTab('clients')">＋ Novo cliente</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="tab active" id="tab-dashboard">
+        <div class="hero-grid">
+          <div class="card">
+            <h1 class="headline">Integração de CRM em escala para <span>accounts V4</span>.</h1>
+            <p class="lead">Cadastre accounts, clientes, GrowthPacks, CRMs, mapeamentos e rode sincronizações controladas para alimentar a <code>BASE_CRM</code>. O sistema prioriza coleta, organização, auditoria e logs; decisões críticas continuam com validação humana.</p>
+            <div class="flow">
+              <span class="pill green">Cliente</span>
+              <span class="pill">Account</span>
+              <span class="pill">CRM</span>
+              <span class="pill">Token Alias</span>
+              <span class="pill">Normalizador</span>
+              <span class="pill">GrowthPack</span>
+              <span class="pill green">BASE_CRM</span>
+              <span class="pill yellow">Auditoria</span>
+            </div>
+          </div>
+          <div class="card compact">
+            <div class="card-title">
+              <div>
+                <h3>Saúde operacional</h3>
+                <p>Resumo em tempo real do cockpit local.</p>
+              </div>
+              <small id="lastUpdate">Agora</small>
+            </div>
+            <div class="mini-chart" id="healthChart"></div>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <div>
+                <h3>Próximas ações V4</h3>
+                <p>Pipeline operacional para tirar do MVP e virar rotina.</p>
+              </div>
+            </div>
+            <div class="kanban">
+              <div class="lane">
+                <h4>Manual obrigatório <span class="pill red">humano</span></h4>
+                <div class="task"><strong>Validar credenciais</strong><span>Admin deve validar permissões e token antes de ativar cliente.</span></div>
+                <div class="task"><strong>Validar promessa</strong><span>Nenhuma promessa ao cliente sai automática.</span></div>
+              </div>
+              <div class="lane">
+                <h4>Semi-auto <span class="pill yellow">aprovação</span></h4>
+                <div class="task"><strong>Atualização de CRM</strong><span>Gerar sugestão, mas exigir aprovação.</span></div>
+                <div class="task"><strong>Health Score / FCA</strong><span>Rascunho automático com validação do account.</span></div>
+              </div>
+              <div class="lane">
+                <h4>Automatizável <span class="pill green">rodar</span></h4>
+                <div class="task"><strong>Coleta de dados</strong><span>Puxar CRM, normalizar e alimentar GrowthPack.</span></div>
+                <div class="task"><strong>Auditoria semanal</strong><span>Leads parados, sem dono e perdas sem motivo.</span></div>
+              </div>
+              <div class="lane">
+                <h4>Não automatizar <span class="pill red">bloquear</span></h4>
+                <div class="task"><strong>Orçamento</strong><span>Não alterar verba, contrato ou promessa sem humano.</span></div>
+                <div class="task"><strong>Envio sensível</strong><span>Cliente e lead exigem aprovação.</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <div>
+                <h3>Últimos logs</h3>
+                <p>Eventos recentes de cadastro, sync e auditoria.</p>
+              </div>
+              <button class="btn btn-secondary btn-small" onclick="goTab('logs')">Ver todos</button>
+            </div>
+            <div class="logs" id="dashboardLogs"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab" id="tab-accounts">
+        <div class="grid-main">
+          <div class="card">
+            <div class="card-title">
+              <div><h3>Cadastrar account</h3><p>Usuários que gerenciam clientes/projetos.</p></div>
+            </div>
+            <label>Nome</label><input id="accName" placeholder="Ex: Vinicius Agnes" />
+            <label>E-mail V4</label><input id="accEmail" placeholder="nome@v4company.com" />
+            <div class="form-grid">
+              <div><label>Perfil</label><select id="accRole"><option value="admin">Admin</option><option value="account">Account</option><option value="viewer">Viewer</option></select></div>
+              <div><label>Status</label><select id="accStatus"><option value="ativo">Ativo</option><option value="pausado">Pausado</option></select></div>
+            </div>
+            <label>Unidade/time</label><input id="accTeam" placeholder="Ex: GrowthOps / Account" />
+            <div class="btn-row"><button class="btn btn-primary" onclick="saveAccount()">Salvar account</button><button class="btn btn-secondary" onclick="clearAccountForm()">Limpar</button></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><div><h3>Accounts cadastrados</h3><p>Controle de acesso operacional por responsável.</p></div><small id="accountsCount">0 accounts</small></div>
+            <div class="list" id="accountsList"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab" id="tab-clients">
+        <div class="grid-main">
+          <div class="card">
+            <div class="card-title"><div><h3>Novo cliente/projeto</h3><p>Cadastro central para replicar entre accounts.</p></div></div>
+            <label>Nome do cliente</label><input id="clientName" placeholder="Ex: ST1 Internet" />
+            <div class="form-grid">
+              <div><label>Account responsável</label><select id="clientAccount"></select></div>
+              <div><label>Status</label><select id="clientStatus"><option value="ativo">Ativo</option><option value="implantacao">Implantação</option><option value="pausado">Pausado</option><option value="churn">Churn</option></select></div>
+            </div>
+            <label>URL do GrowthPack</label><input id="growthpackUrl" placeholder="Cole o link do Google Sheets do cliente" />
+            <div class="form-grid">
+              <div><label>Aba CRM destino</label><input id="crmTab" value="BASE_CRM" /></div>
+              <div><label>Segmento</label><input id="clientSegment" placeholder="Ex: Telecom, Saúde, B2B..." /></div>
+            </div>
+            <label>Observações</label><textarea id="clientNotes" placeholder="Contexto do cliente, funil, restrições, pontos de atenção..."></textarea>
+            <div class="btn-row"><button class="btn btn-primary" onclick="saveClient()">Salvar cliente</button><button class="btn btn-secondary" onclick="clearClientForm()">Limpar</button></div>
+            <div class="notice green">Padrão esperado no GrowthPack: <code>BASE_CRM</code> com Data, Lead ID, Nome, Valor, LEAD, MQL, SQL, OPORTUNIDADE, COMPRA, LEAD PERDIDO, META ADS, GOOGLE ADS, RESPONSAVEL e MOTIVO DE PERDA.</div>
+          </div>
+          <div class="card">
+            <div class="card-title"><div><h3>Clientes/projetos</h3><p>Lista operacional conectável ao CRM.</p></div><small id="clientsCount">0 clientes</small></div>
+            <div class="form-grid" style="margin-bottom:12px">
+              <div><label>Buscar</label><input id="clientSearch" placeholder="Buscar cliente, account ou CRM" oninput="renderClients()" /></div>
+              <div><label>Filtrar status</label><select id="clientStatusFilter" onchange="renderClients()"><option value="todos">Todos</option><option value="ativo">Ativo</option><option value="implantacao">Implantação</option><option value="pausado">Pausado</option><option value="churn">Churn</option></select></div>
+            </div>
+            <div class="list" id="clientsList"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab" id="tab-integrations">
+        <div class="grid-main">
+          <div class="card">
+            <div class="card-title"><div><h3>Conexão CRM</h3><p>Cadastro de API por cliente. Use token alias, nunca token real no front.</p></div></div>
+            <label>Cliente</label><select id="intClient"></select>
+            <div class="form-grid">
+              <div><label>CRM</label><select id="intCrm"><option value="kommo">Kommo</option><option value="rdstation">RD Station</option><option value="hubspot">HubSpot</option><option value="moskit">Moskit</option><option value="ixc">IXC</option><option value="opa">OPA</option><option value="mock">Mock/Teste</option></select></div>
+              <div><label>Status</label><select id="intStatus"><option value="ativo">Ativo</option><option value="pendente">Pendente</option><option value="erro">Erro</option><option value="pausado">Pausado</option></select></div>
+            </div>
+            <label>URL base do CRM</label><input id="intBaseUrl" placeholder="Ex: https://cliente.kommo.com" />
+            <div class="form-grid">
+              <div><label>Token alias</label><input id="intTokenAlias" placeholder="Ex: TOKEN_ST1_KOMMO" /></div>
+              <div><label>Pipeline/Funil ID</label><input id="intPipeline" placeholder="ID ou nome do funil" /></div>
+            </div>
+            <div class="form-grid-3">
+              <div><label>Etapa Lead</label><input id="stageLead" value="lead" /></div>
+              <div><label>Etapa MQL</label><input id="stageMql" value="mql" /></div>
+              <div><label>Etapa SQL</label><input id="stageSql" value="sql" /></div>
+            </div>
+            <div class="form-grid-3">
+              <div><label>Oportunidade</label><input id="stageOpp" value="oportunidade" /></div>
+              <div><label>Ganho/Compra</label><input id="stageWon" value="compra" /></div>
+              <div><label>Perdido</label><input id="stageLost" value="perdido" /></div>
+            </div>
+            <div class="btn-row"><button class="btn btn-primary" onclick="saveIntegration()">Salvar integração</button><button class="btn btn-secondary" onclick="testIntegration()">Testar conexão</button></div>
+            <div class="notice red">Token real deve ficar em backend, Vercel Env, Apps Script Properties, Secret Manager ou cofre seguro. O navegador guarda apenas o alias.</div>
+          </div>
+          <div class="card">
+            <div class="card-title"><div><h3>Integrações cadastradas</h3><p>CRMs disponíveis por cliente/projeto.</p></div><small id="integrationsCount">0 conexões</small></div>
+            <div class="list" id="integrationsList"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab" id="tab-mapping">
+        <div class="grid-main">
+          <div class="card">
+            <div class="card-title"><div><h3>Mapeamento de campos</h3><p>De/para do CRM para o padrão V4 da BASE_CRM.</p></div></div>
+            <label>Cliente</label><select id="mapClient" onchange="renderMappingEditor()"></select>
+            <div id="mappingRows"></div>
+            <div class="btn-row"><button class="btn btn-primary" onclick="saveMapping()">Salvar mapeamento</button><button class="btn btn-secondary" onclick="loadDefaultMapping()">Aplicar padrão V4</button></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><div><h3>Preview BASE_CRM</h3><p>Como os dados serão normalizados.</p></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Campo V4</th><th>Origem CRM</th><th>Obrigatório</th><th>Uso</th></tr></thead><tbody id="mappingPreview"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab" id="tab-sync">
+        <div class="grid-main">
+          <div class="card">
+            <div class="card-title"><div><h3>Sincronização</h3><p>Rode sync individual ou em lote. Sem backend, roda simulação segura.</p></div></div>
+            <label>Backend URL</label><input id="backendUrl" placeholder="Ex: https://v4-crm-bridge.vercel.app/api/sync" />
+            <div class="form-grid">
+              <div><label>Cliente</label><select id="syncClient"></select></div>
+              <div><label>Modo</label><select id="syncMode"><option value="dryrun">Dry-run / simulação</option><option value="real">Real via backend</option></select></div>
+            </div>
+            <div class="form-grid">
+              <div><label>Limite de registros</label><input id="syncLimit" type="number" min="1" value="50" /></div>
+              <div><label>Frequência sugerida</label><select id="syncFrequency"><option>A cada 1 hora</option><option>A cada 6 horas</option><option>Diário</option><option>Antes do check-in</option></select></div>
+            </div>
+            <div class="btn-row"><button class="btn btn-primary" onclick="syncSelectedClient()">Sincronizar cliente</button><button class="btn btn-secondary" onclick="syncAllClients()">Sincronizar todos ativos</button><button class="btn btn-secondary" onclick="saveBackend()">Salvar backend</button></div>
+            <div class="notice">Dry-run valida fluxo, logs e normalização visual. Real via backend deve chamar CRM, normalizar e escrever na aba <code>BASE_CRM</code>.</div>
+          </div>
+          <div class="card">
+            <div class="card-title"><div><h3>Fila de sincronização</h3><p>Status por cliente.</p></div></div>
+            <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>CRM</th><th>Status</th><th>Último sync</th><th>Registros</th><th>Ações</th></tr></thead><tbody id="syncTable"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab" id="tab-audit">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><div><h3>Auditoria de CRM</h3><p>Regras para apontar gargalos antes dos check-ins.</p></div><button class="btn btn-primary btn-small" onclick="runAudit()">Rodar auditoria</button></div>
+            <div class="grid-2">
+              <div><label>Dias para lead parado</label><input id="auditStaleDays" type="number" value="7" min="1" /></div>
+              <div><label>Obrigar motivo de perda</label><select id="auditLossReason"><option value="sim">Sim</option><option value="nao">Não</option></select></div>
+            </div>
+            <div class="notice green">Regras incluídas: lead sem dono, lead sem próximo passo, lead parado, campo obrigatório vazio, perda sem motivo e oportunidade sem temperatura.</div>
+          </div>
+          <div class="card">
+            <div class="card-title"><div><h3>Resumo de riscos</h3><p>Saída pronta para check-in e FCA.</p></div></div>
+            <div class="kpi-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin:0" id="auditKpis"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:18px">
+          <div class="card-title"><div><h3>Achados de auditoria</h3><p>Problema, impacto, ação corretiva, responsável e automação.</p></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Cliente</th><th>Problema</th><th>Impacto</th><th>Ação corretiva</th><th>Automação</th><th>Severidade</th></tr></thead><tbody id="auditTable"></tbody></table></div>
+        </div>
+      </section>
+
+      <section class="tab" id="tab-logs">
+        <div class="card">
+          <div class="card-title"><div><h3>Logs operacionais</h3><p>Histórico de ações locais e retornos do backend.</p></div><div class="split-action"><button class="btn btn-secondary btn-small" onclick="exportLogs()">Exportar logs</button><button class="btn btn-danger btn-small" onclick="clearLogs()">Limpar logs</button></div></div>
+          <div class="form-grid" style="margin-bottom:12px"><div><label>Filtro</label><select id="logFilter" onchange="renderLogs()"><option value="todos">Todos</option><option value="success">Sucesso</option><option value="error">Erro</option><option value="running">Running</option><option value="info">Info</option></select></div><div><label>Buscar</label><input id="logSearch" placeholder="Buscar em logs" oninput="renderLogs()" /></div></div>
+          <div class="logs" id="logsList"></div>
+        </div>
+      </section>
+
+      <section class="tab" id="tab-settings">
+        <div class="grid-main">
+          <div class="card">
+            <div class="card-title"><div><h3>Configurações do sistema</h3><p>Parâmetros locais do cockpit.</p></div></div>
+            <label>Nome do operador</label><input id="settingOperator" />
+            <label>E-mail do operador</label><input id="settingEmail" />
+            <label>Planilha MASTER</label><input id="settingMasterSheet" placeholder="ID ou URL da planilha V4 CRM Bridge | MASTER" />
+            <label>Webhook padrão</label><input id="settingWebhook" placeholder="URL padrão do backend" />
+            <div class="btn-row"><button class="btn btn-primary" onclick="saveSettings()">Salvar configurações</button><button class="btn btn-secondary" onclick="exportState()">Exportar estado</button><button class="btn btn-danger" onclick="resetAll()">Resetar sistema</button></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><div><h3>Instalação GitHub</h3><p>Como usar este arquivo como sistema web.</p></div></div>
+            <div class="notice green">
+              1. Crie o repositório <code>v4-crm-bridge</code>.<br>
+              2. Salve este arquivo como <code>index.html</code>.<br>
+              3. Ative GitHub Pages em <code>Settings → Pages → main/root</code>.<br>
+              4. Use modo demo para validar com accounts.<br>
+              5. Depois conecte backend seguro para API real.
+            </div>
+            <div class="notice red">
+              Nunca coloque tokens reais no GitHub ou neste front. Use <code>.env</code>, Vercel Env, Apps Script Properties ou Secret Manager.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">V4 CRM Bridge · Cliente → Dados → Diagnóstico → Check-in → Decisão → Tarefa → Follow-up → Risco → FCA → Monetização</footer>
+    </main>
+  </div>
+
+  <nav class="mobile-tabs" id="mobileTabs"></nav>
+
+  <script>
+    const STORAGE_KEY = 'v4-crm-bridge-system-v2';
+    const tabs = [
+      { id: 'dashboard', label: 'Geral', icon: '🏠', title: 'Visão Geral', subtitle: 'Cockpit de integrações CRM → GrowthPack → BASE_CRM para accounts e projetos.' },
+      { id: 'accounts', label: 'Accounts', icon: '👤', title: 'Accounts', subtitle: 'Gestão dos responsáveis por clientes, projetos e implantações.' },
+      { id: 'clients', label: 'Clientes', icon: '🏢', title: 'Clientes e Projetos', subtitle: 'Cadastro de GrowthPacks e projetos que receberão dados de CRM.' },
+      { id: 'integrations', label: 'Integrações', icon: '🔌', title: 'Integrações CRM', subtitle: 'Conexões por cliente, CRM, token alias, pipeline e etapas.' },
+      { id: 'mapping', label: 'Mapeamento', icon: '🧩', title: 'Mapeamento BASE_CRM', subtitle: 'De/para dos campos do CRM para o padrão V4.' },
+      { id: 'sync', label: 'Sync', icon: '▶️', title: 'Sincronização', subtitle: 'Fila, dry-run, backend e execução por cliente.' },
+      { id: 'audit', label: 'Auditoria', icon: '🛡️', title: 'Auditoria de Funil', subtitle: 'Leads parados, campos vazios, perdas sem motivo e riscos.' },
+      { id: 'logs', label: 'Logs', icon: '📜', title: 'Logs', subtitle: 'Histórico operacional do sistema e integrações.' },
+      { id: 'settings', label: 'Config', icon: '⚙️', title: 'Configurações', subtitle: 'Instalação, operador, backend e segurança.' }
+    ];
+
+    const baseFields = [
+      ['Data', 'created_at', 'Sim', 'Data de criação ou entrada no funil'],
+      ['Lead ID', 'id', 'Sim', 'Chave única para evitar duplicidade'],
+      ['Nome', 'name', 'Sim', 'Nome do lead, contato ou deal'],
+      ['Valor', 'price', 'Não', 'Valor da oportunidade ou compra'],
+      ['LEAD', 'stage_lead', 'Sim', 'Flag 1/0 para etapa lead'],
+      ['MQL', 'stage_mql', 'Sim', 'Flag 1/0 para etapa MQL'],
+      ['SQL', 'stage_sql', 'Sim', 'Flag 1/0 para etapa SQL'],
+      ['OPORTUNIDADE', 'stage_opportunity', 'Sim', 'Flag 1/0 para oportunidade'],
+      ['COMPRA', 'stage_won', 'Sim', 'Flag 1/0 para ganho/compra'],
+      ['LEAD PERDIDO', 'stage_lost', 'Sim', 'Flag 1/0 para perdido'],
+      ['META ADS', 'source_meta', 'Não', 'Origem Meta, Facebook ou Instagram'],
+      ['GOOGLE ADS', 'source_google', 'Não', 'Origem Google, GAds ou CPC'],
+      ['RESPONSAVEL', 'owner', 'Sim', 'Dono comercial ou atendente'],
+      ['MOTIVO DE PERDA', 'lost_reason', 'Não', 'Motivo de perda do CRM']
+    ];
+
+    const defaultState = {
+      activeTab: 'dashboard',
+      settings: {
+        operator: 'Vinicius Agnes',
+        email: 'vinicius.agnes@v4company.com',
+        masterSheet: '',
+        webhook: ''
+      },
+      accounts: [],
+      clients: [],
+      integrations: [],
+      mappings: {},
+      audits: [],
+      logs: []
+    };
+
+    function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
+    function uid(prefix) { return prefix + '_' + Math.random().toString(36).slice(2, 8) + '_' + Date.now().toString(36); }
+    function now() { return new Date().toLocaleString('pt-BR'); }
+
+    function getState() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return parsed ? { ...clone(defaultState), ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) } } : clone(defaultState);
+      } catch (error) { return clone(defaultState); }
+    }
+
+    function setState(state, silent = false) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (!silent) render();
+    }
+
+    function toast(message) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+    }
+
+    function addLog(status, title, detail) {
+      const state = getState();
+      state.logs.unshift({ id: uid('log'), status, title, detail, at: now() });
+      setState(state);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+    }
+    function safeUrl(value) { return escapeHtml(value || '#').replaceAll('`','&#096;'); }
+    function val(id) { return document.getElementById(id)?.value.trim() || ''; }
+    function setVal(id, value) { const el = document.getElementById(id); if (el) el.value = value || ''; }
+
+    function toggleSidebar(force) {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('drawerBackdrop');
+      const open = typeof force === 'boolean' ? force : !sidebar.classList.contains('open');
+      sidebar.classList.toggle('open', open);
+      backdrop.classList.toggle('show', open);
+    }
+
+    function goTab(tabId) {
+      const state = getState();
+      state.activeTab = tabId;
+      setState(state);
+      toggleSidebar(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function getAccountName(email) {
+      const state = getState();
+      const acc = state.accounts.find(a => a.email === email);
+      return acc ? acc.name : email || '-';
+    }
+
+    function getClientName(clientId) {
+      const state = getState();
+      const client = state.clients.find(c => c.id === clientId);
+      return client ? client.name : '-';
+    }
+
+    function getIntegration(clientId) {
+      const state = getState();
+      return state.integrations.find(i => i.clientId === clientId);
+    }
+
+    function statusClass(status) {
+      if (['ok','success','ativo'].includes(status)) return 'ok';
+      if (['erro','error'].includes(status)) return 'error';
+      if (['running'].includes(status)) return 'running';
+      return 'pending';
+    }
+
+    function renderNav() {
+      const state = getState();
+      const counts = {
+        accounts: state.accounts.length,
+        clients: state.clients.length,
+        integrations: state.integrations.length,
+        logs: state.logs.length,
+        audit: state.audits.length
+      };
+      const navHtml = tabs.map(t => `
+        <button class="${state.activeTab === t.id ? 'active' : ''}" onclick="goTab('${t.id}')">
+          <span class="nav-ico">${t.icon}</span><span class="nav-label">${t.label}</span>${counts[t.id] ? `<span class="nav-count">${counts[t.id]}</span>` : '<span></span>'}
+        </button>`).join('');
+      document.getElementById('nav').innerHTML = navHtml;
+      document.getElementById('mobileTabs').innerHTML = tabs.slice(0,5).map(t => `<button class="${state.activeTab === t.id ? 'active' : ''}" onclick="goTab('${t.id}')"><span>${t.icon}</span>${t.label}</button>`).join('');
+    }
+
+    function renderHeader() {
+      const state = getState();
+      const tab = tabs.find(t => t.id === state.activeTab) || tabs[0];
+      document.getElementById('pageTitle').textContent = tab.title;
+      document.getElementById('pageSubtitle').textContent = tab.subtitle;
+      document.getElementById('sideOperator').textContent = state.settings.operator;
+      document.getElementById('sideEmail').textContent = state.settings.email;
+      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tab.id)?.classList.add('active');
+    }
+
+    function renderSelects() {
+      const state = getState();
+      const accountOpts = state.accounts.length ? state.accounts.map(a => `<option value="${escapeHtml(a.email)}">${escapeHtml(a.name)} · ${escapeHtml(a.email)}</option>`).join('') : '<option value="">Cadastre um account primeiro</option>';
+      const clientOpts = state.clients.length ? state.clients.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('') : '<option value="">Cadastre um cliente primeiro</option>';
+      ['clientAccount'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = accountOpts; });
+      ['intClient','mapClient','syncClient'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = clientOpts; });
+    }
+
+    function renderDashboard() {
+      const state = getState();
+      const activeClients = state.clients.filter(c => c.status === 'ativo').length;
+      const okIntegrations = state.integrations.filter(i => i.status === 'ativo').length;
+      const errors = state.logs.filter(l => l.status === 'error').length + state.integrations.filter(i => i.status === 'erro').length;
+      const syncs = state.logs.filter(l => l.title.toLowerCase().includes('sync') || l.title.toLowerCase().includes('sincron')).length;
+      const kpis = [
+        ['Accounts', state.accounts.length, 'responsáveis cadastrados', '👤'],
+        ['Clientes ativos', activeClients, `${state.clients.length} no total`, '🏢'],
+        ['Integrações OK', okIntegrations, `${state.integrations.length} conexões`, '🔌'],
+        ['Erros/Riscos', errors, `${syncs} syncs/logs`, '⚠️']
+      ];
+      document.getElementById('kpiGrid').innerHTML = kpis.map(k => `<div class="kpi"><div class="kpi-top"><span>${k[0]}</span><span>${k[3]}</span></div><strong>${k[1]}</strong><em>${k[2]}</em></div>`).join('');
+      document.getElementById('lastUpdate').textContent = now();
+      const chartData = [
+        ['Clientes', Math.min(100, state.clients.length * 18)],
+        ['Integrações', Math.min(100, state.integrations.length * 22)],
+        ['Mapeamento', Math.min(100, Object.keys(state.mappings || {}).length * 26)],
+        ['Auditoria', Math.min(100, state.audits.length * 12)]
+      ];
+      document.getElementById('healthChart').innerHTML = chartData.map(([label, value]) => `<div class="bar-row"><span>${label}</span><div class="bar-bg"><div class="bar-fill" style="width:${value}%"></div></div><b>${value}%</b></div>`).join('');
+      document.getElementById('dashboardLogs').innerHTML = state.logs.slice(0,7).map(logTemplate).join('') || '<div class="empty">Nenhum log ainda. Carregue dados demo ou cadastre o primeiro cliente.</div>';
+    }
+
+    function saveAccount() {
+      const name = val('accName'), email = val('accEmail');
+      if (!name || !email) return toast('Preencha nome e e-mail do account.');
+      const state = getState();
+      const existing = state.accounts.find(a => a.email === email);
+      const payload = { id: existing?.id || uid('acc'), name, email, role: val('accRole'), status: val('accStatus'), team: val('accTeam'), createdAt: existing?.createdAt || new Date().toISOString() };
+      state.accounts = [payload, ...state.accounts.filter(a => a.email !== email)];
+      setState(state);
+      clearAccountForm();
+      addLog('success', 'Account salvo', `${name} foi cadastrado/atualizado.`);
+      toast('Account salvo.');
+    }
+
+    function clearAccountForm(){ ['accName','accEmail','accTeam'].forEach(id => setVal(id,'')); setVal('accRole','admin'); setVal('accStatus','ativo'); }
+    function editAccount(email){ const a = getState().accounts.find(x => x.email === email); if(!a) return; setVal('accName',a.name); setVal('accEmail',a.email); setVal('accRole',a.role); setVal('accStatus',a.status); setVal('accTeam',a.team); goTab('accounts'); }
+    function deleteAccount(email){ if(!confirm('Excluir account?')) return; const s=getState(); s.accounts=s.accounts.filter(a=>a.email!==email); setState(s); addLog('error','Account removido',email); }
+
+    function renderAccounts() {
+      const state = getState();
+      document.getElementById('accountsCount').textContent = `${state.accounts.length} accounts`;
+      document.getElementById('accountsList').innerHTML = state.accounts.map(a => `<article class="item"><div><h4>${escapeHtml(a.name)}</h4><p>${escapeHtml(a.email)} · ${escapeHtml(a.role)} · ${escapeHtml(a.team || '-')}</p><span class="status ${statusClass(a.status)}"><span class="dot"></span>${escapeHtml(a.status)}</span></div><div class="item-actions"><button class="btn btn-secondary btn-small" onclick="editAccount('${escapeHtml(a.email)}')">Editar</button><button class="btn btn-danger btn-small" onclick="deleteAccount('${escapeHtml(a.email)}')">Excluir</button></div></article>`).join('') || '<div class="empty">Nenhum account cadastrado.</div>';
+    }
+
+    function saveClient() {
+      const name = val('clientName'), accountEmail = val('clientAccount'), growthpackUrl = val('growthpackUrl');
+      if (!name || !accountEmail || !growthpackUrl) return toast('Preencha cliente, account e GrowthPack.');
+      const state = getState();
+      const id = window.__editingClientId || uid('client');
+      const existing = state.clients.find(c => c.id === id);
+      const payload = { id, name, accountEmail, growthpackUrl, crmTab: val('crmTab') || 'BASE_CRM', segment: val('clientSegment'), status: val('clientStatus'), notes: val('clientNotes'), createdAt: existing?.createdAt || new Date().toISOString(), lastSync: existing?.lastSync || '', lastRecords: existing?.lastRecords || 0, syncStatus: existing?.syncStatus || 'pendente' };
+      state.clients = [payload, ...state.clients.filter(c => c.id !== id)];
+      setState(state);
+      window.__editingClientId = null;
+      clearClientForm();
+      addLog('success', 'Cliente salvo', `${name} foi cadastrado/atualizado.`);
+      toast('Cliente salvo.');
+    }
+
+    function clearClientForm(){ ['clientName','growthpackUrl','clientSegment','clientNotes'].forEach(id=>setVal(id,'')); setVal('crmTab','BASE_CRM'); setVal('clientStatus','ativo'); window.__editingClientId=null; }
+    function editClient(id){ const c=getState().clients.find(x=>x.id===id); if(!c)return; window.__editingClientId=id; setVal('clientName',c.name); setVal('clientAccount',c.accountEmail); setVal('growthpackUrl',c.growthpackUrl); setVal('crmTab',c.crmTab); setVal('clientSegment',c.segment); setVal('clientStatus',c.status); setVal('clientNotes',c.notes); goTab('clients'); }
+    function deleteClient(id){ if(!confirm('Excluir cliente?')) return; const s=getState(); const c=s.clients.find(x=>x.id===id); s.clients=s.clients.filter(x=>x.id!==id); s.integrations=s.integrations.filter(i=>i.clientId!==id); delete s.mappings[id]; setState(s); addLog('error','Cliente removido',c?.name || id); }
+
+    function renderClients() {
+      const state = getState();
+      const q = (val('clientSearch') || '').toLowerCase();
+      const filter = val('clientStatusFilter') || 'todos';
+      let list = state.clients.filter(c => filter === 'todos' || c.status === filter);
+      if (q) list = list.filter(c => [c.name, c.accountEmail, getAccountName(c.accountEmail), c.segment, getIntegration(c.id)?.crm].join(' ').toLowerCase().includes(q));
+      document.getElementById('clientsCount').textContent = `${list.length} clientes`;
+      document.getElementById('clientsList').innerHTML = list.map(c => { const int = getIntegration(c.id); return `<article class="item"><div><h4>${escapeHtml(c.name)}</h4><p><strong>Account:</strong> ${escapeHtml(getAccountName(c.accountEmail))} · <strong>CRM:</strong> ${escapeHtml(int?.crm || 'não conectado')}</p><p><strong>GrowthPack:</strong> <a target="_blank" rel="noreferrer" href="${safeUrl(c.growthpackUrl)}">abrir planilha</a> · <strong>Aba:</strong> ${escapeHtml(c.crmTab || 'BASE_CRM')}</p><span class="status ${statusClass(c.status)}"><span class="dot"></span>${escapeHtml(c.status)}</span></div><div class="item-actions"><button class="btn btn-primary btn-small" onclick="syncClient('${c.id}')">Sync</button><button class="btn btn-secondary btn-small" onclick="editClient('${c.id}')">Editar</button><button class="btn btn-danger btn-small" onclick="deleteClient('${c.id}')">Excluir</button></div></article>`; }).join('') || '<div class="empty">Nenhum cliente encontrado.</div>';
+    }
+
+    function saveIntegration() {
+      const clientId = val('intClient'); if(!clientId) return toast('Selecione um cliente.');
+      const state=getState();
+      const payload = { id: uid('int'), clientId, crm: val('intCrm'), status: val('intStatus'), baseUrl: val('intBaseUrl'), tokenAlias: val('intTokenAlias'), pipeline: val('intPipeline'), stages: { lead: val('stageLead'), mql: val('stageMql'), sql: val('stageSql'), opportunity: val('stageOpp'), won: val('stageWon'), lost: val('stageLost') }, updatedAt: new Date().toISOString() };
+      state.integrations = [payload, ...state.integrations.filter(i => i.clientId !== clientId)];
+      setState(state);
+      addLog('success','Integração salva',`${getClientName(clientId)} · ${payload.crm}`);
+      toast('Integração salva.');
+    }
+
+    function testIntegration(){ const clientId=val('intClient'); if(!clientId)return toast('Selecione um cliente.'); addLog('running','Teste de conexão','Dry-run de conexão para ' + getClientName(clientId)); setTimeout(()=>addLog('success','Teste concluído','Estrutura validada. Backend real ainda precisa ser plugado.'),500); }
+    function deleteIntegration(clientId){ if(!confirm('Excluir integração?')) return; const s=getState(); s.integrations=s.integrations.filter(i=>i.clientId!==clientId); setState(s); addLog('error','Integração removida',getClientName(clientId)); }
+    function editIntegration(clientId){ const i=getIntegration(clientId); if(!i)return; setVal('intClient',i.clientId); setVal('intCrm',i.crm); setVal('intStatus',i.status); setVal('intBaseUrl',i.baseUrl); setVal('intTokenAlias',i.tokenAlias); setVal('intPipeline',i.pipeline); setVal('stageLead',i.stages?.lead); setVal('stageMql',i.stages?.mql); setVal('stageSql',i.stages?.sql); setVal('stageOpp',i.stages?.opportunity); setVal('stageWon',i.stages?.won); setVal('stageLost',i.stages?.lost); goTab('integrations'); }
+
+    function renderIntegrations(){ const s=getState(); document.getElementById('integrationsCount').textContent=`${s.integrations.length} conexões`; document.getElementById('integrationsList').innerHTML=s.integrations.map(i=>`<article class="item"><div><h4>${escapeHtml(getClientName(i.clientId))}</h4><p><strong>CRM:</strong> ${escapeHtml(i.crm)} · <strong>Pipeline:</strong> ${escapeHtml(i.pipeline || '-')} · <strong>Token:</strong> ${escapeHtml(i.tokenAlias || '-')}</p><p>${escapeHtml(i.baseUrl || 'sem URL base')}</p><span class="status ${statusClass(i.status)}"><span class="dot"></span>${escapeHtml(i.status)}</span></div><div class="item-actions"><button class="btn btn-secondary btn-small" onclick="editIntegration('${i.clientId}')">Editar</button><button class="btn btn-danger btn-small" onclick="deleteIntegration('${i.clientId}')">Excluir</button></div></article>`).join('') || '<div class="empty">Nenhuma integração cadastrada.</div>'; }
+
+    function loadDefaultMapping(){ renderMappingEditor(baseFields.map(f=>({v4:f[0],crm:f[1]}))); toast('Padrão V4 aplicado. Clique em salvar.'); }
+    function renderMappingEditor(rows){ const s=getState(); const clientId=val('mapClient'); const data = rows || s.mappings[clientId] || baseFields.map(f=>({v4:f[0],crm:f[1]})); document.getElementById('mappingRows').innerHTML = data.map((r,idx)=>`<div class="field-map-row"><div><label>Campo V4</label><input data-map-v4="${idx}" value="${escapeHtml(r.v4)}" /></div><div><label>Campo CRM</label><input data-map-crm="${idx}" value="${escapeHtml(r.crm)}" /></div><button class="btn btn-danger btn-small" onclick="removeMappingRow(${idx})">Remover</button></div>`).join('') + '<button class="btn btn-secondary" onclick="addMappingRow()">＋ Adicionar campo</button>'; renderMappingPreview(data); }
+    function collectMapping(){ const v4=[...document.querySelectorAll('[data-map-v4]')]; return v4.map((el,idx)=>({v4:el.value.trim(), crm:document.querySelector(`[data-map-crm="${idx}"]`)?.value.trim() || ''})).filter(r=>r.v4); }
+    function addMappingRow(){ const data=collectMapping(); data.push({v4:'',crm:''}); renderMappingEditor(data); }
+    function removeMappingRow(idx){ const data=collectMapping().filter((_,i)=>i!==idx); renderMappingEditor(data); }
+    function saveMapping(){ const clientId=val('mapClient'); if(!clientId)return toast('Selecione um cliente.'); const s=getState(); s.mappings[clientId]=collectMapping(); setState(s); addLog('success','Mapeamento salvo',getClientName(clientId)); toast('Mapeamento salvo.'); }
+    function renderMappingPreview(data){ const rows=(data || collectMapping()); document.getElementById('mappingPreview').innerHTML = rows.map(r=>{ const meta=baseFields.find(f=>f[0]===r.v4); return `<tr><td>${escapeHtml(r.v4)}</td><td>${escapeHtml(r.crm)}</td><td>${escapeHtml(meta?.[2] || '-')}</td><td class="muted">${escapeHtml(meta?.[3] || 'Campo customizado')}</td></tr>`; }).join('') || '<tr><td colspan="4" class="muted">Nenhum mapeamento.</td></tr>'; }
+
+    function saveBackend(){ const s=getState(); s.settings.webhook=val('backendUrl'); setState(s); addLog('success','Backend salvo',s.settings.webhook || 'Modo dry-run'); toast('Backend salvo.'); }
+    async function syncSelectedClient(){ const clientId=val('syncClient'); if(!clientId)return toast('Selecione um cliente.'); await syncClient(clientId); }
+    async function syncAllClients(){ const s=getState(); const active=s.clients.filter(c=>c.status==='ativo'); for (const c of active) await syncClient(c.id, true); render(); toast(`${active.length} clientes processados.`); }
+
+    async function syncClient(clientId, silent=false){
+      let s=getState(); const client=s.clients.find(c=>c.id===clientId); if(!client)return;
+      const integration=s.integrations.find(i=>i.clientId===clientId);
+      addLog('running','Sync iniciado',`${client.name} · ${integration?.crm || 'sem CRM'}`);
+      const backend=val('backendUrl') || s.settings.webhook;
+      const mode=val('syncMode') || 'dryrun';
+      if(mode==='real' && backend){
+        try{
+          const response=await fetch(backend,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({client,integration,mapping:s.mappings[clientId] || baseFields.map(f=>({v4:f[0],crm:f[1]})),limit:Number(val('syncLimit')||50)})});
+          const data=await response.json().catch(()=>({})); if(!response.ok) throw new Error(data.message || 'HTTP '+response.status);
+          s=getState(); const c=s.clients.find(x=>x.id===clientId); c.lastSync=now(); c.lastRecords=data.records || Number(val('syncLimit')||50); c.syncStatus='ok'; setState(s);
+          addLog('success','Sync real concluído',`${client.name}: ${c.lastRecords} registros.`);
+        }catch(error){ s=getState(); const c=s.clients.find(x=>x.id===clientId); c.lastSync=now(); c.syncStatus='erro'; setState(s); addLog('error','Falha no sync real',`${client.name}: ${error.message}`); }
+      } else {
+        await new Promise(r=>setTimeout(r, silent ? 120 : 650));
+        s=getState(); const c=s.clients.find(x=>x.id===clientId); c.lastSync=now(); c.lastRecords=Math.floor(Math.random()*190)+10; c.syncStatus='ok'; setState(s);
+        addLog('success','Dry-run concluído',`${client.name}: simulação com ${c.lastRecords} registros normalizados.`);
+      }
+    }
+
+    function renderSync(){ const s=getState(); setVal('backendUrl',s.settings.webhook); document.getElementById('syncTable').innerHTML=s.clients.map(c=>{ const i=getIntegration(c.id); return `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(i?.crm || '-')}</td><td><span class="status ${statusClass(c.syncStatus)}"><span class="dot"></span>${escapeHtml(c.syncStatus || 'pendente')}</span></td><td class="muted">${escapeHtml(c.lastSync || '-')}</td><td>${escapeHtml(c.lastRecords || 0)}</td><td><button class="btn btn-primary btn-small" onclick="syncClient('${c.id}')">Sync</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="muted">Nenhum cliente.</td></tr>'; }
+
+    function runAudit(){ const s=getState(); const findings=[]; s.clients.forEach(c=>{ const i=getIntegration(c.id); if(!i) findings.push({client:c.name,problem:'Cliente sem integração CRM',impact:'Sem coleta automática para BASE_CRM',action:'Cadastrar conexão CRM e token alias',automation:'Semi-automatizável',severity:'Alta'}); if(!c.growthpackUrl) findings.push({client:c.name,problem:'GrowthPack ausente',impact:'Sem destino para dados normalizados',action:'Cadastrar URL da planilha',automation:'Manual obrigatório',severity:'Alta'}); if(i && i.status!=='ativo') findings.push({client:c.name,problem:'Integração não ativa',impact:'Sync pode falhar',action:'Testar token, URL e pipeline',automation:'Semi-automatizável',severity:'Média'}); if(!(s.mappings[c.id]||[]).length) findings.push({client:c.name,problem:'Mapeamento não configurado',impact:'Campos podem cair errados na BASE_CRM',action:'Aplicar padrão V4 de mapeamento',automation:'Automatizável',severity:'Média'}); if(c.syncStatus==='erro') findings.push({client:c.name,problem:'Último sync com erro',impact:'Dados desatualizados no check-in',action:'Ler logs e corrigir backend/token',automation:'Semi-automatizável',severity:'Alta'}); }); s.audits=findings; setState(s); addLog('success','Auditoria executada',`${findings.length} achados encontrados.`); toast('Auditoria executada.'); }
+    function renderAudit(){ const s=getState(); const high=s.audits.filter(a=>a.severity==='Alta').length; const med=s.audits.filter(a=>a.severity==='Média').length; document.getElementById('auditKpis').innerHTML=[['Achados',s.audits.length,'total'],['Alta',high,'prioridade'],['Média',med,'atenção'],['Clientes',s.clients.length,'base']].map(k=>`<div class="kpi"><span>${k[0]}</span><strong>${k[1]}</strong><em>${k[2]}</em></div>`).join(''); document.getElementById('auditTable').innerHTML=s.audits.map(a=>`<tr><td>${escapeHtml(a.client)}</td><td>${escapeHtml(a.problem)}</td><td class="muted">${escapeHtml(a.impact)}</td><td>${escapeHtml(a.action)}</td><td>${escapeHtml(a.automation)}</td><td><span class="pill ${a.severity==='Alta'?'red':'yellow'}">${escapeHtml(a.severity)}</span></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Rode a auditoria para gerar achados.</td></tr>'; }
+
+    function logTemplate(l){ return `<div class="log ${escapeHtml(l.status)}"><strong>${escapeHtml(l.title)}</strong><br>${escapeHtml(l.detail || '')}<br><small>${escapeHtml(l.at)}</small></div>`; }
+    function renderLogs(){ const s=getState(); const filter=val('logFilter') || 'todos'; const q=(val('logSearch')||'').toLowerCase(); let logs=s.logs; if(filter!=='todos') logs=logs.filter(l=>l.status===filter); if(q) logs=logs.filter(l=>[l.title,l.detail,l.at].join(' ').toLowerCase().includes(q)); document.getElementById('logsList').innerHTML=logs.map(logTemplate).join('') || '<div class="empty">Nenhum log encontrado.</div>'; }
+    function clearLogs(){ if(!confirm('Limpar logs?'))return; const s=getState(); s.logs=[]; setState(s); }
+    function exportLogs(){ downloadJson('v4-crm-bridge-logs.json', getState().logs); }
+
+    function saveSettings(){ const s=getState(); s.settings.operator=val('settingOperator'); s.settings.email=val('settingEmail'); s.settings.masterSheet=val('settingMasterSheet'); s.settings.webhook=val('settingWebhook'); setState(s); addLog('success','Configurações salvas','Operador e endpoints atualizados.'); toast('Configurações salvas.'); }
+    function renderSettings(){ const s=getState(); setVal('settingOperator',s.settings.operator); setVal('settingEmail',s.settings.email); setVal('settingMasterSheet',s.settings.masterSheet); setVal('settingWebhook',s.settings.webhook); }
+    function resetAll(){ if(!confirm('Resetar todo o sistema local?'))return; localStorage.removeItem(STORAGE_KEY); render(); toast('Sistema resetado.'); }
+    function exportState(){ downloadJson('v4-crm-bridge-state.json', getState()); }
+    function downloadJson(filename,data){ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url); }
+
+    function loadSeedData(){
+      const s=getState();
+      s.accounts = [
+        {id:'acc_vini',name:'Vinicius Agnes',email:'vinicius.agnes@v4company.com',role:'admin',status:'ativo',team:'GrowthOps / Account',createdAt:new Date().toISOString()},
+        {id:'acc_demo',name:'Account Demo',email:'account.demo@v4company.com',role:'account',status:'ativo',team:'Projetos',createdAt:new Date().toISOString()}
+      ];
+      s.clients = [
+        {id:'client_st1',name:'ST1 Internet',accountEmail:'vinicius.agnes@v4company.com',growthpackUrl:'https://docs.google.com/spreadsheets/d/1BurqRDqYbWq8dPVxXiKjWH6WmfBNoe39AymwJM8LpFA/edit',crmTab:'BASE_CRM',segment:'Telecom',status:'ativo',notes:'Cliente piloto. GrowthPack V26 Inside Sales.',createdAt:new Date().toISOString(),lastSync:'',lastRecords:0,syncStatus:'pendente'},
+        {id:'client_multi',name:'MultiMed',accountEmail:'vinicius.agnes@v4company.com',growthpackUrl:'https://docs.google.com/spreadsheets/d/EXEMPLO_MULTIMED/edit',crmTab:'BASE_CRM',segment:'Saúde',status:'implantacao',notes:'Validar CRM e API oficial.',createdAt:new Date().toISOString(),lastSync:'',lastRecords:0,syncStatus:'pendente'},
+        {id:'client_yousafer',name:'YouSafer',accountEmail:'account.demo@v4company.com',growthpackUrl:'https://docs.google.com/spreadsheets/d/EXEMPLO_YOUSAFER/edit',crmTab:'BASE_CRM',segment:'Segurança',status:'ativo',notes:'Demo para account.',createdAt:new Date().toISOString(),lastSync:'',lastRecords:0,syncStatus:'pendente'}
+      ];
+      s.integrations = [
+        {id:'int_st1',clientId:'client_st1',crm:'kommo',status:'ativo',baseUrl:'https://cliente.kommo.com',tokenAlias:'TOKEN_ST1_KOMMO',pipeline:'inside_sales',stages:{lead:'lead',mql:'mql',sql:'sql',opportunity:'oportunidade',won:'compra',lost:'perdido'},updatedAt:new Date().toISOString()},
+        {id:'int_multi',clientId:'client_multi',crm:'hubspot',status:'pendente',baseUrl:'https://api.hubapi.com',tokenAlias:'TOKEN_MULTIMED_HUBSPOT',pipeline:'default',stages:{lead:'lead',mql:'mql',sql:'sql',opportunity:'opportunity',won:'closedwon',lost:'closedlost'},updatedAt:new Date().toISOString()}
+      ];
+      s.mappings = { client_st1: baseFields.map(f=>({v4:f[0],crm:f[1]})), client_multi: baseFields.map(f=>({v4:f[0],crm:f[1]})) };
+      s.logs.unshift({id:uid('log'),status:'success',title:'Dados demo carregados',detail:'Accounts, clientes, integrações e mapeamento foram criados.',at:now()});
+      setState(s); toast('Dados demo carregados.');
+    }
+
+    function render(){ renderNav(); renderHeader(); renderSelects(); renderDashboard(); renderAccounts(); renderClients(); renderIntegrations(); renderMappingEditor(); renderSync(); renderAudit(); renderLogs(); renderSettings(); }
+
+    window.addEventListener('resize', () => { if (window.innerWidth > 940) toggleSidebar(false); });
+    render();
+  </script>
+</body>
+</html>
