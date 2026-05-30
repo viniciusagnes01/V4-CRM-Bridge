@@ -3,7 +3,13 @@
   "trailingSlash": false,
   "functions": {
     "api/*.js": {
-      "maxDuration": 30
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron-moskit",
+      "schedule": "*/10 * * * *"
+    }
+  ]
 }
