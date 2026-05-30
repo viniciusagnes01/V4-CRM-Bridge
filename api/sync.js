@@ -29,18 +29,72 @@ async function getRecords({ integration, limit }) {
   return sampleRecords();
 }
 
-async function writeRows({ growthpackUrl, tabName, rows }) {
+function buildLeadIndex(values) {
+  const index = new Map();
+  values.slice(1).forEach((row, offset) => {
+    const leadId = String(row[1] || '').trim();
+    if (leadId) index.set(leadId, offset + 2);
+  });
+  return index;
+}
+
+async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
   const sheetId = extractSheetId(growthpackUrl);
   if (!sheetId) throw new Error('Missing GrowthPack URL or Sheet ID');
-  const sheets = google.sheets({ version: 'v4', auth: getGoogleAuth() });
-  const result = await sheets.spreadsheets.values.append({
-    spreadsheetId: sheetId,
-    range: `${tabName || 'BASE_CRM'}!A:O`,
-    valueInputOption: 'USER_ENTERED',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: { values: rows }
+
+  const auth = getGoogleAuth();
+  const sheets = google.sheets({ version: 'v4', auth });
+  const range = `${tabName || 'BASE_CRM'}!A:O`;
+
+  if (mode !== 'upsert') {
+    const result = await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: rows }
+    });
+    return { appendedRows: result.data.updates?.updatedRows || rows.length, updatedRows: 0 };
+  }
+
+  const current = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range });
+  const values = current.data.values || [];
+  const leadIndex = buildLeadIndex(values);
+
+  const updates = [];
+  const inserts = [];
+
+  rows.forEach(row => {
+    const leadId = String(row[1] || '').trim();
+    const targetRow = leadIndex.get(leadId);
+    if (targetRow) {
+      updates.push({ range: `${tabName || 'BASE_CRM'}!A${targetRow}:O${targetRow}`, values: [row] });
+    } else {
+      inserts.push(row);
+    }
   });
-  return result.data.updates?.updatedRows || rows.length;
+
+  if (updates.length) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        valueInputOption: 'USER_ENTERED',
+        data: updates
+      }
+    });
+  }
+
+  if (inserts.length) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: inserts }
+    });
+  }
+
+  return { appendedRows: inserts.length, updatedRows: updates.length };
 }
 
 function safePreviewRecord(record) {
@@ -68,14 +122,15 @@ export default async function handler(req, res) {
     const stages = integration.stages || {};
     const limit = Number(body.limit || 50);
     const writeToSheet = Boolean(body.writeToSheet);
+    const writeMode = body.writeMode || 'upsert';
     const includeDiagnostics = Boolean(body.includeDiagnostics) && !writeToSheet;
 
     const records = await getRecords({ integration, limit });
     const rows = records.map(record => toBaseCrmRow(record, stages));
 
-    let writtenRows = 0;
+    let writeResult = { appendedRows: 0, updatedRows: 0 };
     if (writeToSheet) {
-      writtenRows = await writeRows({ growthpackUrl: client.growthpackUrl, tabName: client.crmTab || 'BASE_CRM', rows });
+      writeResult = await writeRows({ growthpackUrl: client.growthpackUrl, tabName: client.crmTab || 'BASE_CRM', rows, mode: writeMode });
     }
 
     return send(res, 200, {
@@ -83,10 +138,13 @@ export default async function handler(req, res) {
       client: client.name || 'Cliente sem nome',
       crm: integration.crm || 'mock',
       records: records.length,
-      writtenRows,
+      writtenRows: writeResult.appendedRows + writeResult.updatedRows,
+      appendedRows: writeResult.appendedRows,
+      updatedRows: writeResult.updatedRows,
+      writeMode,
       rows,
       previewRecords: includeDiagnostics ? records.slice(0, 5).map(safePreviewRecord) : undefined,
-      message: writeToSheet ? 'Sync completed and rows were sent to BASE_CRM.' : 'Sync completed in preview mode.'
+      message: writeToSheet ? 'Sync completed and rows were upserted into BASE_CRM.' : 'Sync completed in preview mode.'
     });
   } catch (error) {
     return send(res, 500, { ok: false, message: error.message });
