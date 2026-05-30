@@ -1,30 +1,429 @@
-const STORE='v4_crm_bridge_ui_v1';
-const tabs=[
-  ['dashboard','Dashboard','i-dashboard','v4'],['accounts','Accounts','i-accounts','blue'],['clients','Clientes','i-clients','orange'],['integrations','Integracoes','i-crm','v4'],['mapping','Mapeamento','i-map','blue'],['sync','Sync','i-sync','v4'],['audit','Auditoria','i-audit','red'],['logs','Logs','i-logs','orange'],['settings','Config','i-settings','blue']
+const STORE = 'v4_crm_bridge_internal_v2';
+
+const tabs = [
+  { id: 'dashboard', label: 'Visão Geral', title: 'Visão Geral', subtitle: 'Cockpit interno para integração entre CRM, GrowthPack e BASE_CRM.', icon: 'i-dashboard', color: 'v4' },
+  { id: 'accounts', label: 'Accounts', title: 'Accounts', subtitle: 'Gestão dos responsáveis por clientes e projetos da unidade.', icon: 'i-accounts', color: 'blue' },
+  { id: 'clients', label: 'Clientes', title: 'Clientes e Projetos', subtitle: 'Cadastro operacional dos GrowthPacks que receberão dados de CRM.', icon: 'i-clients', color: 'orange' },
+  { id: 'integrations', label: 'Integrações', title: 'Integrações CRM', subtitle: 'Configuração de CRM, funil, etapas e credencial segura por cliente.', icon: 'i-crm', color: 'v4' },
+  { id: 'mapping', label: 'Mapeamento', title: 'Mapeamento BASE_CRM', subtitle: 'Padronização dos campos de CRM para o modelo V4.', icon: 'i-map', color: 'blue' },
+  { id: 'sync', label: 'Sincronização', title: 'Sincronização', subtitle: 'Execução controlada de coleta, normalização e envio para a BASE_CRM.', icon: 'i-sync', color: 'v4' },
+  { id: 'audit', label: 'Auditoria', title: 'Auditoria de Funil', subtitle: 'Validação de riscos, campos obrigatórios e gargalos comerciais.', icon: 'i-audit', color: 'red' },
+  { id: 'logs', label: 'Logs', title: 'Logs Operacionais', subtitle: 'Histórico de ações, sincronizações e falhas do sistema.', icon: 'i-logs', color: 'orange' },
+  { id: 'settings', label: 'Configurações', title: 'Configurações', subtitle: 'Parâmetros internos do cockpit da unidade V4 Company.', icon: 'i-settings', color: 'blue' }
 ];
-const baseFields=['Data','Lead ID','Nome','Valor','LEAD','MQL','SQL','OPORTUNIDADE','COMPRA','LEAD PERDIDO','META ADS','GOOGLE ADS','RESPONSAVEL','MOTIVO DE PERDA'];
-function state(){return JSON.parse(localStorage.getItem(STORE)||'{"tab":"dashboard","accounts":[],"clients":[],"integrations":[],"logs":[],"settings":{"operator":"Vinicius Agnes","email":"vinicius.agnes@v4company.com"}}')}
-function save(s){localStorage.setItem(STORE,JSON.stringify(s));render()}
-function log(type,msg){const s=state();s.logs.unshift({type,msg,at:new Date().toLocaleString('pt-BR')});save(s)}
-function icon(cls,color='v4'){return `<span class="icon ${color} ${cls}"></span>`}
-function setTab(id){const s=state();s.tab=id;save(s)}
-function seed(){const s=state();s.accounts=[{name:'Vinicius Agnes',email:'vinicius.agnes@v4company.com',role:'admin'}];s.clients=[{name:'ST1 Internet',account:'vinicius.agnes@v4company.com',sheet:'GrowthPack ST1',status:'ativo'},{name:'Cliente Demo',account:'vinicius.agnes@v4company.com',sheet:'GrowthPack Demo',status:'implantacao'}];s.integrations=[{client:'ST1 Internet',crm:'kommo',alias:'credencial_st1',status:'ativo'}];s.logs.unshift({type:'success',msg:'Base demo carregada',at:new Date().toLocaleString('pt-BR')});save(s)}
-function addAccount(e){e.preventDefault();const s=state();s.accounts.unshift({name:accName.value,email:accEmail.value,role:accRole.value});save(s);e.target.reset();log('success','Account cadastrado')}
-function addClient(e){e.preventDefault();const s=state();s.clients.unshift({name:clientName.value,account:clientAccount.value,sheet:growthpack.value,status:clientStatus.value});save(s);e.target.reset();log('success','Cliente cadastrado')}
-function addIntegration(e){e.preventDefault();const s=state();s.integrations.unshift({client:intClient.value,crm:intCrm.value,alias:intAlias.value,status:intStatus.value});save(s);e.target.reset();log('success','Integracao cadastrada')}
-function syncClient(name){const s=state();const c=s.clients.find(x=>x.name===name);if(c){c.lastSync=new Date().toLocaleString('pt-BR');c.records=Math.floor(Math.random()*120)+10}save(s);log('success','Sync preview executado para '+name)}
-function runAudit(){const s=state();const issues=[];s.clients.forEach(c=>{if(!s.integrations.find(i=>i.client===c.name))issues.push([c.name,'Sem integracao CRM','Cadastrar conexao CRM','Alta']);if(!c.sheet)issues.push([c.name,'Sem GrowthPack','Cadastrar planilha destino','Alta'])});s.audit=issues;save(s);log('success','Auditoria executada')}
-function removeClient(name){const s=state();s.clients=s.clients.filter(c=>c.name!==name);save(s);log('success','Cliente removido')}
-function exportData(){const blob=new Blob([JSON.stringify(state(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='v4-crm-bridge.json';a.click()}
-function layout(content){const s=state();return `<div class="shell"><aside class="side"><div class="brand"><div class="mark">V4</div><div><h1>CRM Bridge</h1><p>Sistema exclusivo V4</p></div></div><nav class="nav">${tabs.map(t=>`<button class="${s.tab===t[0]?'active':''}" onclick="setTab('${t[0]}')">${icon(t[2],t[3])}<span>${t[1]}</span></button>`).join('')}</nav><div style="margin-top:22px" class="card"><b>${s.settings.operator}</b><p class="muted">${s.settings.email}</p><button class="btn secondary" onclick="seed()">Carregar demonstracao</button></div></aside><main class="main"><header class="top"><div><h2>${tabs.find(t=>t[0]===s.tab)?.[1]||'Dashboard'}</h2><p>CRM, GrowthPack, BASE_CRM e auditoria operacional.</p></div><div class="actions"><button class="btn primary" onclick="setTab('sync')">Sincronizar</button><button class="btn secondary" onclick="exportData()">Exportar</button></div></header>${content}<footer class="muted">V4 CRM Bridge - sem emoji, com icones proprietarios do sistema.</footer></main></div>`}
-function dashboard(){const s=state();return `<div class="card"><h1 class="hero">Integracao de CRM para <span>accounts V4</span>.</h1><p class="muted">Sistema responsivo para cadastro, integracoes, mapeamento, sync e auditoria.</p></div><div class="kpis"><div class="kpi"><small>Accounts</small><b>${s.accounts.length}</b></div><div class="kpi"><small>Clientes</small><b>${s.clients.length}</b></div><div class="kpi"><small>Integracoes</small><b>${s.integrations.length}</b></div><div class="kpi"><small>Logs</small><b>${s.logs.length}</b></div></div><div class="grid"><div class="card"><h3>Matriz V4</h3><p class="muted">Automatizar coleta, organizacao, logs e auditoria. Validar decisoes sensiveis.</p></div><div class="card"><h3>Ultimos logs</h3><div class="logs">${s.logs.slice(0,5).map(l=>`<div class="log"><b>${l.type}</b><br>${l.msg}<br>${l.at}</div>`).join('')||'<div class="empty">Sem logs.</div>'}</div></div></div>`}
-function accounts(){const s=state();return `<div class="grid"><form class="card" onsubmit="addAccount(event)"><h3>Novo account</h3><label>Nome</label><input id="accName" required><label>Email</label><input id="accEmail" required><label>Perfil</label><select id="accRole"><option>admin</option><option>account</option><option>viewer</option></select><br><br><button class="btn primary">Salvar</button></form><div class="card"><h3>Accounts</h3><div class="list">${s.accounts.map(a=>`<div class="item"><div><h4>${a.name}</h4><p>${a.email}</p><span class="pill">${a.role}</span></div></div>`).join('')||'<div class="empty">Nenhum account.</div>'}</div></div></div>`}
-function clients(){const s=state();return `<div class="grid"><form class="card" onsubmit="addClient(event)"><h3>Novo cliente</h3><label>Nome</label><input id="clientName" required><label>Account</label><select id="clientAccount">${s.accounts.map(a=>`<option>${a.email}</option>`).join('')}</select><label>GrowthPack</label><input id="growthpack" required><label>Status</label><select id="clientStatus"><option>ativo</option><option>implantacao</option><option>pausado</option></select><br><br><button class="btn primary">Salvar</button></form><div class="card"><h3>Clientes</h3><div class="list">${s.clients.map(c=>`<div class="item"><div><h4>${c.name}</h4><p>${c.account}</p><span class="pill">${c.status}</span></div><div><button class="btn secondary" onclick="syncClient('${c.name}')">Sync</button><button class="btn secondary" onclick="removeClient('${c.name}')">Remover</button></div></div>`).join('')||'<div class="empty">Nenhum cliente.</div>'}</div></div></div>`}
-function integrations(){const s=state();return `<div class="grid"><form class="card" onsubmit="addIntegration(event)"><h3>Nova integracao</h3><label>Cliente</label><select id="intClient">${s.clients.map(c=>`<option>${c.name}</option>`).join('')}</select><label>CRM</label><select id="intCrm"><option>kommo</option><option>rdstation</option><option>hubspot</option><option>moskit</option></select><label>Alias seguro</label><input id="intAlias" required><label>Status</label><select id="intStatus"><option>ativo</option><option>pendente</option><option>erro</option></select><br><br><button class="btn primary">Salvar</button></form><div class="card"><h3>Integracoes</h3>${s.integrations.map(i=>`<div class="item"><div><h4>${i.client}</h4><p>${i.crm} - ${i.alias}</p><span class="pill">${i.status}</span></div></div>`).join('')||'<div class="empty">Nenhuma integracao.</div>'}</div></div>`}
-function mapping(){return `<div class="card"><h3>Mapeamento BASE_CRM</h3><div class="table"><table><thead><tr><th>Campo V4</th><th>Origem CRM</th></tr></thead><tbody>${baseFields.map(f=>`<tr><td>${f}</td><td><input value="${f.toLowerCase().replaceAll(' ','_')}"></td></tr>`).join('')}</tbody></table></div></div>`}
-function sync(){const s=state();return `<div class="card"><h3>Fila de sincronizacao</h3><div class="table"><table><thead><tr><th>Cliente</th><th>Status</th><th>Ultimo sync</th><th>Registros</th><th>Ação</th></tr></thead><tbody>${s.clients.map(c=>`<tr><td>${c.name}</td><td>${c.status}</td><td>${c.lastSync||'-'}</td><td>${c.records||0}</td><td><button class="btn primary" onclick="syncClient('${c.name}')">Sync</button></td></tr>`).join('')}</tbody></table></div></div>`}
-function audit(){const s=state();return `<div class="card"><h3>Auditoria</h3><button class="btn primary" onclick="runAudit()">Rodar auditoria</button></div><div class="card"><div class="table"><table><thead><tr><th>Cliente</th><th>Problema</th><th>Ação</th><th>Severidade</th></tr></thead><tbody>${(s.audit||[]).map(a=>`<tr><td>${a[0]}</td><td>${a[1]}</td><td>${a[2]}</td><td>${a[3]}</td></tr>`).join('')}</tbody></table></div></div>`}
-function logs(){const s=state();return `<div class="card"><h3>Logs</h3><div class="logs">${s.logs.map(l=>`<div class="log"><b>${l.type}</b><br>${l.msg}<br>${l.at}</div>`).join('')||'<div class="empty">Sem logs.</div>'}</div></div>`}
-function settings(){const s=state();return `<form class="card" onsubmit="event.preventDefault();const st=state();st.settings.operator=operator.value;st.settings.email=email.value;save(st);log('success','Configuracoes atualizadas')"><h3>Configuracoes</h3><label>Operador</label><input id="operator" value="${s.settings.operator}"><label>Email</label><input id="email" value="${s.settings.email}"><br><br><button class="btn primary">Salvar</button></form>`}
-function render(){const s=state();const pages={dashboard,accounts,clients,integrations,mapping,sync,audit,logs,settings};document.getElementById('app').innerHTML=layout((pages[s.tab]||dashboard)())}
-window.setTab=setTab;window.seed=seed;window.addAccount=addAccount;window.addClient=addClient;window.addIntegration=addIntegration;window.syncClient=syncClient;window.runAudit=runAudit;window.exportData=exportData;window.removeClient=removeClient;render();
+
+const baseFields = [
+  ['Data', 'created_at', 'Data de criação, entrada ou movimentação do lead'],
+  ['Lead ID', 'id', 'Identificador único do registro no CRM'],
+  ['Nome', 'name', 'Nome do lead, contato ou oportunidade'],
+  ['Valor', 'value', 'Valor da oportunidade ou venda'],
+  ['LEAD', 'stage_lead', 'Indicador da etapa Lead'],
+  ['MQL', 'stage_mql', 'Indicador da etapa MQL'],
+  ['SQL', 'stage_sql', 'Indicador da etapa SQL'],
+  ['OPORTUNIDADE', 'stage_opportunity', 'Indicador da etapa Oportunidade'],
+  ['COMPRA', 'stage_won', 'Indicador de compra ou ganho'],
+  ['LEAD PERDIDO', 'stage_lost', 'Indicador de perda'],
+  ['META ADS', 'source_meta', 'Origem Meta, Facebook ou Instagram'],
+  ['GOOGLE ADS', 'source_google', 'Origem Google Ads'],
+  ['RESPONSAVEL', 'owner', 'Responsável comercial pelo registro'],
+  ['MOTIVO DE PERDA', 'loss_reason', 'Motivo informado para perda']
+];
+
+const initialState = {
+  tab: 'dashboard',
+  accounts: [],
+  clients: [],
+  integrations: [],
+  logs: [],
+  audit: [],
+  settings: {
+    operator: 'Vinicius Agnes',
+    email: 'vinicius.agnes@v4company.com',
+    unit: 'V4 Company',
+    backend: 'https://v4-crm-bridge.vercel.app/api/sync'
+  }
+};
+
+function getState() {
+  try {
+    return { ...initialState, ...JSON.parse(localStorage.getItem(STORE) || '{}') };
+  } catch {
+    return { ...initialState };
+  }
+}
+
+function setState(nextState) {
+  localStorage.setItem(STORE, JSON.stringify(nextState));
+  render();
+}
+
+function addLog(type, message) {
+  const state = getState();
+  state.logs.unshift({ type, message, at: new Date().toLocaleString('pt-BR') });
+  setState(state);
+}
+
+function setTab(tabId) {
+  const state = getState();
+  state.tab = tabId;
+  setState(state);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function icon(tab) {
+  return `<span class="icon ${tab.color} ${tab.icon}"></span>`;
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function seedInternalBase() {
+  const state = getState();
+  state.accounts = [
+    { name: 'Vinicius Agnes', email: 'vinicius.agnes@v4company.com', role: 'Admin', status: 'Ativo' },
+    { name: 'Account V4', email: 'account@v4company.com', role: 'Account', status: 'Ativo' }
+  ];
+  state.clients = [
+    { name: 'ST1 Internet', account: 'vinicius.agnes@v4company.com', sheet: 'GrowthPack ST1 Internet', status: 'Ativo', lastSync: '', records: 0 },
+    { name: 'Cliente Piloto', account: 'account@v4company.com', sheet: 'GrowthPack Cliente Piloto', status: 'Implantação', lastSync: '', records: 0 }
+  ];
+  state.integrations = [
+    { client: 'ST1 Internet', crm: 'Kommo', alias: 'st1_kommo', pipeline: 'Inside Sales', status: 'Ativo' }
+  ];
+  state.logs.unshift({ type: 'success', message: 'Base interna de exemplo carregada.', at: new Date().toLocaleString('pt-BR') });
+  setState(state);
+}
+
+function exportState() {
+  const blob = new Blob([JSON.stringify(getState(), null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'v4-crm-bridge-base.json';
+  link.click();
+}
+
+function submitAccount(event) {
+  event.preventDefault();
+  const state = getState();
+  state.accounts.unshift({
+    name: document.getElementById('accountName').value,
+    email: document.getElementById('accountEmail').value,
+    role: document.getElementById('accountRole').value,
+    status: document.getElementById('accountStatus').value
+  });
+  event.target.reset();
+  setState(state);
+  addLog('success', 'Account cadastrado com sucesso.');
+}
+
+function submitClient(event) {
+  event.preventDefault();
+  const state = getState();
+  state.clients.unshift({
+    name: document.getElementById('clientName').value,
+    account: document.getElementById('clientAccount').value,
+    sheet: document.getElementById('clientSheet').value,
+    status: document.getElementById('clientStatus').value,
+    lastSync: '',
+    records: 0
+  });
+  event.target.reset();
+  setState(state);
+  addLog('success', 'Cliente cadastrado com sucesso.');
+}
+
+function submitIntegration(event) {
+  event.preventDefault();
+  const state = getState();
+  state.integrations.unshift({
+    client: document.getElementById('integrationClient').value,
+    crm: document.getElementById('integrationCrm').value,
+    alias: document.getElementById('integrationAlias').value,
+    pipeline: document.getElementById('integrationPipeline').value,
+    status: document.getElementById('integrationStatus').value
+  });
+  event.target.reset();
+  setState(state);
+  addLog('success', 'Integração cadastrada com sucesso.');
+}
+
+function syncClient(clientName) {
+  const state = getState();
+  const client = state.clients.find(item => item.name === clientName);
+  if (!client) return;
+  client.lastSync = new Date().toLocaleString('pt-BR');
+  client.records = Math.floor(Math.random() * 120) + 15;
+  setState(state);
+  addLog('success', `Sincronização de prévia executada para ${clientName}.`);
+}
+
+function syncAll() {
+  const state = getState();
+  state.clients.filter(client => client.status !== 'Pausado').forEach(client => {
+    client.lastSync = new Date().toLocaleString('pt-BR');
+    client.records = Math.floor(Math.random() * 120) + 15;
+  });
+  setState(state);
+  addLog('success', 'Sincronização em lote executada em modo prévia.');
+}
+
+function runAudit() {
+  const state = getState();
+  const findings = [];
+  state.clients.forEach(client => {
+    const integration = state.integrations.find(item => item.client === client.name);
+    if (!integration) findings.push([client.name, 'Cliente sem integração CRM ativa', 'Cadastrar integração e validar funil', 'Alta']);
+    if (!client.sheet) findings.push([client.name, 'GrowthPack não informado', 'Cadastrar planilha destino', 'Alta']);
+    if (client.status === 'Implantação') findings.push([client.name, 'Cliente em implantação', 'Validar credenciais, funil e BASE_CRM', 'Média']);
+  });
+  state.audit = findings;
+  setState(state);
+  addLog('success', 'Auditoria operacional executada.');
+}
+
+function saveSettings(event) {
+  event.preventDefault();
+  const state = getState();
+  state.settings.operator = document.getElementById('settingOperator').value;
+  state.settings.email = document.getElementById('settingEmail').value;
+  state.settings.unit = document.getElementById('settingUnit').value;
+  state.settings.backend = document.getElementById('settingBackend').value;
+  setState(state);
+  addLog('success', 'Configurações atualizadas.');
+}
+
+function layout(content) {
+  const state = getState();
+  const current = tabs.find(tab => tab.id === state.tab) || tabs[0];
+  return `
+    <div class="shell">
+      <aside class="side">
+        <div class="brand">
+          <div class="mark">V4</div>
+          <div>
+            <h1>CRM Bridge</h1>
+            <p>Cockpit interno V4 Company</p>
+          </div>
+        </div>
+        <nav class="nav">
+          ${tabs.map(tab => `<button class="${state.tab === tab.id ? 'active' : ''}" onclick="setTab('${tab.id}')">${icon(tab)}<span>${tab.label}</span></button>`).join('')}
+        </nav>
+        <div class="operator-card">
+          <strong>${escapeHtml(state.settings.operator)}</strong>
+          <span>${escapeHtml(state.settings.email)}</span>
+          <small>${escapeHtml(state.settings.unit)}</small>
+          <button class="btn secondary full" onclick="seedInternalBase()">Carregar base de exemplo</button>
+          <button class="btn ghost full" onclick="exportState()">Exportar base local</button>
+        </div>
+      </aside>
+      <main class="main">
+        <header class="top">
+          <div>
+            <h2>${current.title}</h2>
+            <p>${current.subtitle}</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" onclick="setTab('sync')">Executar sincronização</button>
+            <button class="btn secondary" onclick="setTab('clients')">Cadastrar cliente</button>
+          </div>
+        </header>
+        ${content}
+        <footer class="footer">V4 CRM Bridge · Uso interno V4 Company · Coleta, organização, auditoria e sincronização controlada.</footer>
+      </main>
+    </div>
+  `;
+}
+
+function pageDashboard() {
+  const state = getState();
+  const activeClients = state.clients.filter(item => item.status === 'Ativo').length;
+  const activeIntegrations = state.integrations.filter(item => item.status === 'Ativo').length;
+  return `
+    <section class="hero-card">
+      <div>
+        <span class="eyebrow">Sistema interno de integrações</span>
+        <h1>CRM, GrowthPack e BASE_CRM em uma operação única.</h1>
+        <p>Centralize accounts, clientes, integrações, mapeamento, sincronização e auditoria de funil em um cockpit operacional para a unidade V4 Company.</p>
+      </div>
+    </section>
+    <section class="kpis">
+      <div class="kpi"><small>Accounts</small><b>${state.accounts.length}</b><span>responsáveis cadastrados</span></div>
+      <div class="kpi"><small>Clientes ativos</small><b>${activeClients}</b><span>${state.clients.length} clientes no total</span></div>
+      <div class="kpi"><small>Integrações ativas</small><b>${activeIntegrations}</b><span>${state.integrations.length} conexões cadastradas</span></div>
+      <div class="kpi"><small>Logs</small><b>${state.logs.length}</b><span>eventos operacionais</span></div>
+    </section>
+    <section class="grid two">
+      <div class="card tall">
+        <h3>Matriz operacional V4</h3>
+        <p class="muted">Automatizar coleta, organização, normalização, logs e auditoria. Manter validação humana para promessa ao cliente, orçamento, decisões estratégicas e alterações críticas no CRM.</p>
+        <div class="matrix">
+          <div><strong>Automatizar</strong><span>Coleta de dados, normalização e envio para BASE_CRM.</span></div>
+          <div><strong>Semi-automatizar</strong><span>Health Score, FCA e recomendações de tarefa.</span></div>
+          <div><strong>Validar manualmente</strong><span>Decisões comerciais, orçamento e comunicações sensíveis.</span></div>
+        </div>
+      </div>
+      <div class="card logs-card">
+        <h3>Últimos logs</h3>
+        <div class="logs">
+          ${state.logs.slice(0, 6).map(log => `<div class="log ${log.type}"><strong>${log.type}</strong><span>${escapeHtml(log.message)}</span><small>${log.at}</small></div>`).join('') || '<div class="empty">Nenhum evento registrado.</div>'}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function pageAccounts() {
+  const state = getState();
+  return `
+    <section class="grid two">
+      <form class="card" onsubmit="submitAccount(event)">
+        <h3>Novo account</h3>
+        <label>Nome</label><input id="accountName" required placeholder="Nome do account">
+        <label>E-mail V4</label><input id="accountEmail" required placeholder="nome@v4company.com">
+        <div class="form2">
+          <div><label>Perfil</label><select id="accountRole"><option>Admin</option><option>Account</option><option>Viewer</option></select></div>
+          <div><label>Status</label><select id="accountStatus"><option>Ativo</option><option>Pausado</option></select></div>
+        </div>
+        <div class="actions form-actions"><button class="btn primary">Salvar account</button></div>
+      </form>
+      <div class="card">
+        <h3>Accounts cadastrados</h3>
+        <div class="list">${state.accounts.map(account => `<article class="item"><div><h4>${escapeHtml(account.name)}</h4><p>${escapeHtml(account.email)}</p><span class="pill">${escapeHtml(account.role)}</span></div></article>`).join('') || '<div class="empty">Nenhum account cadastrado.</div>'}</div>
+      </div>
+    </section>
+  `;
+}
+
+function pageClients() {
+  const state = getState();
+  return `
+    <section class="grid two">
+      <form class="card" onsubmit="submitClient(event)">
+        <h3>Novo cliente ou projeto</h3>
+        <label>Cliente</label><input id="clientName" required placeholder="Nome do cliente">
+        <label>Account responsável</label><select id="clientAccount">${state.accounts.map(account => `<option>${escapeHtml(account.email)}</option>`).join('')}</select>
+        <label>GrowthPack</label><input id="clientSheet" required placeholder="URL ou identificação da planilha">
+        <label>Status</label><select id="clientStatus"><option>Ativo</option><option>Implantação</option><option>Pausado</option><option>Churn</option></select>
+        <div class="actions form-actions"><button class="btn primary">Salvar cliente</button></div>
+      </form>
+      <div class="card">
+        <h3>Clientes cadastrados</h3>
+        <div class="list">${state.clients.map(client => `<article class="item"><div><h4>${escapeHtml(client.name)}</h4><p>${escapeHtml(client.account)}</p><p>${escapeHtml(client.sheet)}</p><span class="pill">${escapeHtml(client.status)}</span></div><div class="item-actions"><button class="btn secondary small" onclick="syncClient('${escapeHtml(client.name)}')">Sincronizar</button></div></article>`).join('') || '<div class="empty">Nenhum cliente cadastrado.</div>'}</div>
+      </div>
+    </section>
+  `;
+}
+
+function pageIntegrations() {
+  const state = getState();
+  return `
+    <section class="grid two">
+      <form class="card" onsubmit="submitIntegration(event)">
+        <h3>Nova integração CRM</h3>
+        <label>Cliente</label><select id="integrationClient">${state.clients.map(client => `<option>${escapeHtml(client.name)}</option>`).join('')}</select>
+        <div class="form2">
+          <div><label>CRM</label><select id="integrationCrm"><option>Kommo</option><option>RD Station</option><option>HubSpot</option><option>Moskit</option><option>IXC</option><option>OPA</option></select></div>
+          <div><label>Status</label><select id="integrationStatus"><option>Ativo</option><option>Pendente</option><option>Erro</option><option>Pausado</option></select></div>
+        </div>
+        <label>Alias da credencial segura</label><input id="integrationAlias" required placeholder="identificador interno da credencial">
+        <label>Pipeline ou funil</label><input id="integrationPipeline" placeholder="Nome ou ID do funil">
+        <div class="actions form-actions"><button class="btn primary">Salvar integração</button></div>
+      </form>
+      <div class="card">
+        <h3>Integrações cadastradas</h3>
+        <div class="list">${state.integrations.map(item => `<article class="item"><div><h4>${escapeHtml(item.client)}</h4><p>${escapeHtml(item.crm)} · ${escapeHtml(item.pipeline || 'Funil não informado')}</p><p>Credencial: ${escapeHtml(item.alias)}</p><span class="pill">${escapeHtml(item.status)}</span></div></article>`).join('') || '<div class="empty">Nenhuma integração cadastrada.</div>'}</div>
+      </div>
+    </section>
+  `;
+}
+
+function pageMapping() {
+  return `
+    <section class="card">
+      <h3>Contrato BASE_CRM</h3>
+      <p class="muted">Campos padronizados usados para consolidar dados de CRMs diferentes dentro dos GrowthPacks.</p>
+      <div class="table"><table><thead><tr><th>Campo V4</th><th>Campo origem sugerido</th><th>Uso operacional</th></tr></thead><tbody>${baseFields.map(field => `<tr><td>${field[0]}</td><td><input value="${field[1]}"></td><td>${field[2]}</td></tr>`).join('')}</tbody></table></div>
+    </section>
+  `;
+}
+
+function pageSync() {
+  const state = getState();
+  return `
+    <section class="card">
+      <div class="section-head"><div><h3>Fila de sincronização</h3><p class="muted">Execute prévias ou sincronizações reais pelo backend configurado.</p></div><button class="btn primary" onclick="syncAll()">Sincronizar todos</button></div>
+      <div class="table"><table><thead><tr><th>Cliente</th><th>Status</th><th>Último sync</th><th>Registros</th><th>Ação</th></tr></thead><tbody>${state.clients.map(client => `<tr><td>${escapeHtml(client.name)}</td><td>${escapeHtml(client.status)}</td><td>${client.lastSync || '-'}</td><td>${client.records || 0}</td><td><button class="btn secondary small" onclick="syncClient('${escapeHtml(client.name)}')">Sincronizar</button></td></tr>`).join('')}</tbody></table></div>
+    </section>
+  `;
+}
+
+function pageAudit() {
+  const state = getState();
+  return `
+    <section class="card">
+      <div class="section-head"><div><h3>Auditoria operacional</h3><p class="muted">Validação rápida para identificar riscos antes dos check-ins.</p></div><button class="btn primary" onclick="runAudit()">Rodar auditoria</button></div>
+    </section>
+    <section class="card">
+      <div class="table"><table><thead><tr><th>Cliente</th><th>Problema</th><th>Ação corretiva</th><th>Severidade</th></tr></thead><tbody>${state.audit.map(item => `<tr><td>${escapeHtml(item[0])}</td><td>${escapeHtml(item[1])}</td><td>${escapeHtml(item[2])}</td><td>${escapeHtml(item[3])}</td></tr>`).join('') || '<tr><td colspan="4">Nenhum achado registrado.</td></tr>'}</tbody></table></div>
+    </section>
+  `;
+}
+
+function pageLogs() {
+  const state = getState();
+  return `
+    <section class="card">
+      <h3>Logs operacionais</h3>
+      <div class="logs full-logs">${state.logs.map(log => `<div class="log ${log.type}"><strong>${log.type}</strong><span>${escapeHtml(log.message)}</span><small>${log.at}</small></div>`).join('') || '<div class="empty">Nenhum log registrado.</div>'}</div>
+    </section>
+  `;
+}
+
+function pageSettings() {
+  const state = getState();
+  return `
+    <form class="card settings-form" onsubmit="saveSettings(event)">
+      <h3>Configurações da unidade</h3>
+      <label>Operador</label><input id="settingOperator" value="${escapeHtml(state.settings.operator)}">
+      <label>E-mail</label><input id="settingEmail" value="${escapeHtml(state.settings.email)}">
+      <label>Unidade</label><input id="settingUnit" value="${escapeHtml(state.settings.unit)}">
+      <label>Backend</label><input id="settingBackend" value="${escapeHtml(state.settings.backend)}">
+      <div class="actions form-actions"><button class="btn primary">Salvar configurações</button></div>
+    </form>
+  `;
+}
+
+function render() {
+  const state = getState();
+  const pages = {
+    dashboard: pageDashboard,
+    accounts: pageAccounts,
+    clients: pageClients,
+    integrations: pageIntegrations,
+    mapping: pageMapping,
+    sync: pageSync,
+    audit: pageAudit,
+    logs: pageLogs,
+    settings: pageSettings
+  };
+  document.getElementById('app').innerHTML = layout((pages[state.tab] || pageDashboard)());
+}
+
+window.setTab = setTab;
+window.seedInternalBase = seedInternalBase;
+window.exportState = exportState;
+window.submitAccount = submitAccount;
+window.submitClient = submitClient;
+window.submitIntegration = submitIntegration;
+window.syncClient = syncClient;
+window.syncAll = syncAll;
+window.runAudit = runAudit;
+window.saveSettings = saveSettings;
+
+render();
