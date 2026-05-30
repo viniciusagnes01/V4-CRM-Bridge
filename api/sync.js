@@ -51,7 +51,7 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
   if (mode === 'rebuild') {
     await sheets.spreadsheets.values.clear({
       spreadsheetId: sheetId,
-      range: `${targetTab}!A2:O`
+      range: `${targetTab}!A2:O50000`
     });
 
     if (rows.length) {
@@ -142,7 +142,10 @@ export default async function handler(req, res) {
     const stages = integration.stages || {};
     const limit = Number(body.limit || 50);
     const writeToSheet = Boolean(body.writeToSheet);
-    const writeMode = body.writeMode || 'upsert';
+    const targetTab = client.crmTab || 'BASE_CRM';
+    const requestedMode = String(body.writeMode || 'upsert').toLowerCase();
+    const forceRebuild = Boolean(body.rebuild || body.fullRebuild || body.clearBeforeWrite || body.replaceTarget);
+    const writeMode = (requestedMode === 'rebuild' || forceRebuild) ? 'rebuild' : 'upsert';
     const includeDiagnostics = Boolean(body.includeDiagnostics) && !writeToSheet;
 
     const records = await getRecords({ integration, limit });
@@ -150,19 +153,21 @@ export default async function handler(req, res) {
 
     let writeResult = { appendedRows: 0, updatedRows: 0, clearedRows: false };
     if (writeToSheet) {
-      writeResult = await writeRows({ growthpackUrl: client.growthpackUrl, tabName: client.crmTab || 'BASE_CRM', rows, mode: writeMode });
+      writeResult = await writeRows({ growthpackUrl: client.growthpackUrl, tabName: targetTab, rows, mode: writeMode });
     }
 
     return send(res, 200, {
       ok: true,
       client: client.name || 'Cliente sem nome',
       crm: integration.crm || 'mock',
+      destino: targetTab,
       records: records.length,
       writtenRows: writeResult.appendedRows + writeResult.updatedRows,
       appendedRows: writeResult.appendedRows,
       updatedRows: writeResult.updatedRows,
       clearedRows: Boolean(writeResult.clearedRows),
       writeMode,
+      requestedMode,
       rows,
       previewRecords: includeDiagnostics ? records.slice(0, 5).map(safePreviewRecord) : undefined,
       message: writeToSheet
