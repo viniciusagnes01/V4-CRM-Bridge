@@ -43,9 +43,19 @@ export function normalizeSource(source) {
   };
 }
 
+export function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 export function stageFlag(stage, target) {
   if (!stage || !target) return 0;
-  return String(stage).toLowerCase() === String(target).toLowerCase() ? 1 : 0;
+  const current = normalizeText(stage);
+  const targets = Array.isArray(target) ? target : String(target).split('|');
+  return targets.some(item => normalizeText(item) === current) ? 1 : 0;
 }
 
 export function toBaseCrmRow(record, stages = {}) {
@@ -54,6 +64,7 @@ export function toBaseCrmRow(record, stages = {}) {
     record.date || new Date().toISOString(),
     record.id || '',
     record.name || '',
+    record.companyName || '',
     Number(record.value || 0),
     stageFlag(record.stage, stages.lead || 'lead'),
     stageFlag(record.stage, stages.mql || 'mql'),
