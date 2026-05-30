@@ -23,9 +23,11 @@
     const tab = targetTab();
     const destination = document.getElementById('v4-moskit-destination');
     const syncButton = document.querySelector('[data-moskit-action="sync"]');
+    const rebuildButton = document.querySelector('[data-moskit-action="rebuild"]');
     const warning = document.getElementById('v4-moskit-warning');
     if (destination) destination.textContent = 'GrowthPack V26 · ' + tab;
     if (syncButton) syncButton.textContent = tab === 'BASE_CRM' ? 'Atualizar BASE_CRM' : 'Atualizar TESTE_BASE_CRM';
+    if (rebuildButton) rebuildButton.textContent = tab === 'BASE_CRM' ? 'Reconstruir BASE_CRM' : 'Reconstruir TESTE_BASE_CRM';
     if (warning) {
       warning.textContent = tab === 'BASE_CRM'
         ? 'Modo produção: dados serão gravados na BASE_CRM oficial. Valide a prévia antes de executar.'
@@ -44,7 +46,7 @@
     });
   }
 
-  function payload(writeToSheet) {
+  function payload(writeToSheet, mode) {
     return {
       client: {
         name: 'Moskit V4 - Tráfego',
@@ -56,7 +58,7 @@
       },
       limit: DEFAULT_LIMIT,
       writeToSheet,
-      writeMode: 'upsert',
+      writeMode: mode || 'upsert',
       includeDiagnostics: !writeToSheet
     };
   }
@@ -72,23 +74,26 @@
       writtenRows: data.writtenRows,
       appendedRows: data.appendedRows,
       updatedRows: data.updatedRows,
+      clearedRows: data.clearedRows,
       writeMode: data.writeMode,
       message: data.message
     }, null, 2);
   }
 
-  async function run(writeToSheet) {
+  async function run(writeToSheet, mode) {
     const out = document.getElementById('v4-moskit-real-sync-output');
     const buttons = document.querySelectorAll('[data-moskit-action]');
     const tab = targetTab();
     buttons.forEach(button => button.disabled = true);
-    out.textContent = writeToSheet ? 'Atualizando ' + tab + '...' : 'Consultando funil inteiro no Moskit...';
+    out.textContent = writeToSheet
+      ? (mode === 'rebuild' ? 'Reconstruindo ' + tab + '...' : 'Atualizando ' + tab + '...')
+      : 'Consultando funil inteiro no Moskit...';
 
     try {
       const response = await fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload(writeToSheet))
+        body: JSON.stringify(payload(writeToSheet, mode))
       });
       const data = await response.json();
       out.textContent = writeToSheet ? summary(data) : JSON.stringify(data, null, 2);
@@ -123,7 +128,7 @@
       <div class="matrix">
         <div><strong>Origem</strong><span>Moskit · V4 - Tráfego</span></div>
         <div><strong>Destino</strong><span id="v4-moskit-destination">GrowthPack V26 · ${currentTab}</span></div>
-        <div><strong>Modo</strong><span>Atualiza existentes e cria novos registros.</span></div>
+        <div><strong>Modo</strong><span>Atualiza existentes, cria novos ou reconstrói a aba de teste.</span></div>
       </div>
       <div class="grid two" style="margin-top:14px;gap:12px;">
         <div>
@@ -138,6 +143,7 @@
       <div class="actions form-actions">
         <button class="btn secondary" data-moskit-action="preview">Rodar prévia completa</button>
         <button class="btn primary" data-moskit-action="sync">Atualizar TESTE_BASE_CRM</button>
+        <button class="btn secondary" data-moskit-action="rebuild">Reconstruir TESTE_BASE_CRM</button>
       </div>
       <pre id="v4-moskit-real-sync-output" style="white-space:pre-wrap;word-break:break-word;margin-top:14px;max-height:360px;overflow:auto;background:#080a08;border:1px solid var(--line);border-radius:14px;padding:14px;color:var(--text);">Nenhuma execução nesta sessão.</pre>
     `;
@@ -146,11 +152,16 @@
     else main.appendChild(panel);
 
     panel.querySelector('#v4-moskit-target-tab').addEventListener('change', event => setTargetTab(event.target.value));
-    panel.querySelector('[data-moskit-action="preview"]').addEventListener('click', () => run(false));
+    panel.querySelector('[data-moskit-action="preview"]').addEventListener('click', () => run(false, 'upsert'));
     panel.querySelector('[data-moskit-action="sync"]').addEventListener('click', () => {
       const tab = targetTab();
       const ok = window.confirm('Confirmar atualização da ' + tab + ' via upsert por Lead ID?');
-      if (ok) run(true);
+      if (ok) run(true, 'upsert');
+    });
+    panel.querySelector('[data-moskit-action="rebuild"]').addEventListener('click', () => {
+      const tab = targetTab();
+      const ok = window.confirm('Reconstruir a ' + tab + '? Isso limpa os registros atuais da aba e grava apenas o resultado atual do Moskit.');
+      if (ok) run(true, 'rebuild');
     });
     updateDestinationCopy();
   }
