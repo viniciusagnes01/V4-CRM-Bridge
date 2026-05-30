@@ -1,0 +1,2 @@
+Trigger deploy for Moskit stage names debug endpoint.
+Expected health version: health-debug-moskit-stage-names-20260530
