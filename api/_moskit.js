@@ -32,10 +32,21 @@ function pickNumber(obj, paths, fallback = 0) {
 }
 
 function formatDate(value) {
-  if (!value) return new Date().toISOString().slice(0, 10);
-  const date = new Date(value);
-  if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
-  return String(value).slice(0, 10);
+  const fallback = new Date();
+  const date = value ? new Date(value) : fallback;
+
+  if (!Number.isNaN(date.getTime())) {
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const year = date.getUTCFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
+  const text = String(value || '').trim();
+  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+
+  return text;
 }
 
 function stageDiagnostics(raw) {
