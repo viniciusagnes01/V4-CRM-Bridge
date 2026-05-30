@@ -3,5 +3,11 @@
   "trailingSlash": false,
   "github": {
     "silent": false
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron-moskit",
+      "schedule": "*/10 * * * *"
+    }
+  ]
 }
