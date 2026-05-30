@@ -45,12 +45,13 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
   const auth = getGoogleAuth();
   const sheets = google.sheets({ version: 'v4', auth });
   const range = `${tabName || 'BASE_CRM'}!A:O`;
+  const valueInputOption = 'RAW';
 
   if (mode !== 'upsert') {
     const result = await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
       range,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption,
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: rows }
     });
@@ -78,7 +79,7 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: sheetId,
       requestBody: {
-        valueInputOption: 'USER_ENTERED',
+        valueInputOption,
         data: updates
       }
     });
@@ -88,7 +89,7 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
       range,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption,
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: inserts }
     });
