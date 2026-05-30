@@ -16,6 +16,13 @@ const STAGE_MAP_V4_TRAFEGO = {
   '373596': { name: 'Compra', rank: 5, won: true, lost: false }
 };
 
+const REQUEST_DELAY_MS = 350;
+const RATE_LIMIT_RETRY_MS = [1500, 3500, 7000];
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function readPath(obj, path) {
   return path.split('.').reduce((acc, key) => acc && acc[key], obj);
 }
@@ -227,20 +234,38 @@ function normalizeDeal(raw, context = {}) {
   };
 }
 
-async function requestMoskit({ url, accessKey }) {
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-      apikey: accessKey,
-      'X-API-KEY': accessKey,
-      Authorization: `Bearer ${accessKey}`
-    }
-  });
+async function requestMoskit({ url, accessKey, retries = 2 }) {
+  let lastError;
 
-  const text = await response.text();
-  if (!response.ok) throw new Error(`Moskit API error ${response.status}: ${text.slice(0, 500)}`);
-  return text ? JSON.parse(text) : [];
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (attempt > 0) {
+      await wait(RATE_LIMIT_RETRY_MS[attempt - 1] || 7000);
+    } else {
+      await wait(REQUEST_DELAY_MS);
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        apikey: accessKey,
+        'X-API-KEY': accessKey,
+        Authorization: `Bearer ${accessKey}`
+      }
+    });
+
+    const text = await response.text();
+    if (response.ok) return text ? JSON.parse(text) : [];
+
+    const error = new Error(`Moskit API error ${response.status}: ${text.slice(0, 500)}`);
+    error.status = response.status;
+    error.body = text;
+    lastError = error;
+
+    if (response.status !== 429) break;
+  }
+
+  throw lastError;
 }
 
 async function tryRequestMoskit(args) {
@@ -251,15 +276,15 @@ async function tryRequestMoskit(args) {
   }
 }
 
-async function fetchCatalogMap({ base, accessKey, listEndpoints, byIdEndpoints, ids }) {
+async function fetchCatalogMap({ base, accessKey, listEndpoints, byIdEndpoints, ids, maxPages = 2, maxById = 30 }) {
   const map = {};
 
   for (const endpoint of listEndpoints) {
     let start = 0;
     let previous = '';
-    for (let attempt = 0; attempt < 100; attempt++) {
+    for (let attempt = 0; attempt < maxPages; attempt++) {
       const sep = endpoint.includes('?') ? '&' : '?';
-      const data = await tryRequestMoskit({ url: `${base}${endpoint}${sep}quantity=100&start=${start}`, accessKey });
+      const data = await tryRequestMoskit({ url: `${base}${endpoint}${sep}quantity=100&start=${start}`, accessKey, retries: 1 });
       const list = listFromResponse(data);
       if (!list.length) break;
       const signature = list.map(item => item.id || item._id || JSON.stringify(item).slice(0, 80)).join('|');
@@ -271,10 +296,10 @@ async function fetchCatalogMap({ base, accessKey, listEndpoints, byIdEndpoints, 
     }
   }
 
-  for (const id of ids || []) {
-    if (!id || map[String(id)]) continue;
+  const missingIds = (ids || []).filter(id => id && !map[String(id)]).slice(0, maxById);
+  for (const id of missingIds) {
     for (const template of byIdEndpoints) {
-      const data = await tryRequestMoskit({ url: `${base}${template.replace('{id}', encodeURIComponent(String(id)))}`, accessKey });
+      const data = await tryRequestMoskit({ url: `${base}${template.replace('{id}', encodeURIComponent(String(id)))}`, accessKey, retries: 1 });
       const name = asText(data && (data.data || data.item || data.result || data), false);
       if (name) {
         map[String(id)] = name;
@@ -294,7 +319,14 @@ async function fetchAllDeals({ base, accessKey, limit }) {
   const max = Number(limit || 2000);
 
   for (let attempt = 0; attempt < 500 && all.length < max; attempt++) {
-    const data = await requestMoskit({ url: `${base}/deals?quantity=${quantity}&start=${start}`, accessKey });
+    let data;
+    try {
+      data = await requestMoskit({ url: `${base}/deals?quantity=${quantity}&start=${start}`, accessKey, retries: 2 });
+    } catch (error) {
+      if (error.status === 429 && all.length > 0) break;
+      throw error;
+    }
+
     const deals = listFromResponse(data);
     if (!deals.length) break;
 
@@ -319,10 +351,16 @@ export async function fetchMoskitDeals({ accessKey, limit = 2000, baseUrl }) {
   const filtered = allDeals.filter(deal => stageIds.includes(String(readPath(deal, 'stage.id') || '')));
 
   const ids = collectReferenceIds(filtered);
-  const users = await fetchCatalogMap({ base, accessKey, listEndpoints: ['/users'], byIdEndpoints: ['/users/{id}'], ids: Object.keys(ids.users) });
-  const companies = await fetchCatalogMap({ base, accessKey, listEndpoints: ['/companies'], byIdEndpoints: ['/companies/{id}'], ids: Object.keys(ids.companies) });
-  const contacts = await fetchCatalogMap({ base, accessKey, listEndpoints: ['/contacts'], byIdEndpoints: ['/contacts/{id}'], ids: Object.keys(ids.contacts) });
-  const lostReasons = await fetchCatalogMap({ base, accessKey, listEndpoints: ['/lostReasons', '/lossReasons', '/dealLostReasons', '/dealLossReasons'], byIdEndpoints: ['/lostReasons/{id}', '/lossReasons/{id}', '/dealLostReasons/{id}', '/dealLossReasons/{id}'], ids: Object.keys(ids.lostReasons) });
+  const users = await fetchCatalogMap({ base, accessKey, listEndpoints: ['/users'], byIdEndpoints: ['/users/{id}'], ids: Object.keys(ids.users), maxPages: 2, maxById: 60 });
+  const lostReasons = await fetchCatalogMap({ base, accessKey, listEndpoints: ['/lostReasons', '/lossReasons', '/dealLostReasons', '/dealLossReasons'], byIdEndpoints: ['/lostReasons/{id}', '/lossReasons/{id}', '/dealLostReasons/{id}', '/dealLossReasons/{id}'], ids: Object.keys(ids.lostReasons), maxPages: 1, maxById: 60 });
+
+  const shouldResolveLargeCatalogs = filtered.length <= 300;
+  const companies = shouldResolveLargeCatalogs
+    ? await fetchCatalogMap({ base, accessKey, listEndpoints: ['/companies'], byIdEndpoints: ['/companies/{id}'], ids: Object.keys(ids.companies), maxPages: 1, maxById: 80 })
+    : {};
+  const contacts = shouldResolveLargeCatalogs
+    ? await fetchCatalogMap({ base, accessKey, listEndpoints: ['/contacts'], byIdEndpoints: ['/contacts/{id}'], ids: Object.keys(ids.contacts), maxPages: 1, maxById: 80 })
+    : {};
 
   return filtered.map(deal => normalizeDeal(deal, { users, companies, contacts, lostReasons }));
 }
