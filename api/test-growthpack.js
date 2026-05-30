@@ -6,6 +6,23 @@ const TAB_NAME = 'TESTE_BASE_CRM';
 
 export default async function handler(req, res) {
   try {
+    if (req.method !== 'POST') {
+      return send(res, 405, {
+        ok: false,
+        message: 'Endpoint de teste bloqueado para acesso direto. Use POST com um segredo temporario.'
+      });
+    }
+
+    const providedSecret = req.headers['x-test-secret'];
+    const expectedSecret = process.env.TEST_GROWTHPACK_SECRET;
+
+    if (!expectedSecret || providedSecret !== expectedSecret) {
+      return send(res, 401, {
+        ok: false,
+        message: 'Teste protegido. Configure TEST_GROWTHPACK_SECRET no Vercel e envie o header x-test-secret para executar novamente.'
+      });
+    }
+
     const sheets = google.sheets({ version: 'v4', auth: getGoogleAuth() });
     const now = new Date().toISOString();
 
@@ -35,7 +52,7 @@ export default async function handler(req, res) {
     return send(res, 500, {
       ok: false,
       message: error.message,
-      hint: 'Verifique se as variaveis GOOGLE_SERVICE_ACCOUNT_EMAIL e GOOGLE_PRIVATE_KEY estao no Vercel e se a planilha foi compartilhada como Editor com a service account.'
+      hint: 'Verifique as variaveis do Vercel e o compartilhamento da planilha com a service account.'
     });
   }
 }
