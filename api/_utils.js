@@ -39,7 +39,7 @@ export function normalizeSource(source) {
   const text = String(source || '').toLowerCase();
   return {
     meta: Number(text.includes('meta') || text.includes('facebook') || text.includes('instagram') || text.includes('fb')),
-    google: Number(text.includes('google') || text.includes('gads') || text.includes('cpc'))
+    google: Number(text.includes('google') || text.includes('gads') || text.includes('cpc') || text.includes('search') || text.includes('youtube'))
   };
 }
 
@@ -61,20 +61,22 @@ export function stageFlag(stageValues, target) {
 export function toBaseCrmRow(record, stages = {}) {
   const source = normalizeSource(record.source);
   const stageValues = [record.stage, record.stageId].filter(Boolean);
+  const flags = record.baseCrmFlags || {};
+
   return [
     record.date || new Date().toISOString(),
     record.id || '',
     record.name || '',
     record.companyName || '',
     Number(record.value || 0),
-    stageFlag(stageValues, stages.lead || 'lead'),
-    stageFlag(stageValues, stages.mql || 'mql'),
-    stageFlag(stageValues, stages.sql || 'sql'),
-    stageFlag(stageValues, stages.opportunity || 'oportunidade'),
-    stageFlag(stageValues, stages.won || 'compra'),
-    stageFlag(stageValues, stages.lost || 'perdido'),
-    source.meta,
-    source.google,
+    Number(flags.lead ?? stageFlag(stageValues, stages.lead || 'lead')),
+    Number(flags.mql ?? stageFlag(stageValues, stages.mql || 'mql')),
+    Number(flags.sql ?? stageFlag(stageValues, stages.sql || 'sql')),
+    Number(flags.opportunity ?? stageFlag(stageValues, stages.opportunity || 'oportunidade')),
+    Number(flags.won ?? stageFlag(stageValues, stages.won || 'compra')),
+    Number(flags.lost ?? stageFlag(stageValues, stages.lost || 'perdido')),
+    Number(record.sourceMeta ?? source.meta),
+    Number(record.sourceGoogle ?? source.google),
     record.owner || '',
     record.lossReason || ''
   ];
