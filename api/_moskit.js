@@ -7,7 +7,7 @@ function asText(value, allowId = false) {
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (Array.isArray(value)) return value.map(item => asText(item, allowId)).filter(Boolean).join(', ');
   if (typeof value === 'object') {
-    return asText(value.name || value.title || value.label || value.value || value.description || (allowId ? value.id : '') || '', allowId);
+    return asText(value.name || value.title || value.label || value.value || value.description || value.email || (allowId ? value.id : '') || '', allowId);
   }
   return '';
 }
@@ -29,6 +29,13 @@ function pickNumber(obj, paths, fallback = 0) {
     }
   }
   return fallback;
+}
+
+function formatDate(value) {
+  if (!value) return new Date().toISOString().slice(0, 10);
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+  return String(value).slice(0, 10);
 }
 
 function stageDiagnostics(raw) {
@@ -73,14 +80,14 @@ function normalizeDeal(raw) {
   return {
     id: pickText(raw, ['id', 'dealId', 'uuid', 'externalId'], '', true),
     name: pickText(raw, ['name', 'title', 'dealName'], 'Negocio sem nome'),
-    companyName: pickText(raw, ['company.name', 'organization.name', 'person.name', 'customer.name', 'entity.name']),
+    companyName: pickText(raw, ['company.name', 'organization.name', 'person.name', 'customer.name', 'entity.name', 'companies', 'contacts']),
     value: pickNumber(raw, ['value', 'price', 'amount', 'dealValue'], 0),
     stage: stageName || stageId,
     stageId,
-    date: pickText(raw, ['createdAt', 'created_at', 'dateCreated', 'createdDate']) || new Date().toISOString(),
+    date: formatDate(pickText(raw, ['createdAt', 'created_at', 'dateCreated', 'createdDate'])),
     owner: pickText(raw, ['responsible.name', 'owner.name', 'user.name', 'responsibleUser.name']) || pickText(raw, ['responsible.id', 'owner.id', 'user.id', 'responsibleUser.id'], '', true),
     source: pickText(raw, ['source.name', 'origin.name', 'leadSource.name', 'source', 'origin', 'leadSource']),
-    lossReason: pickText(raw, ['lossReason.name', 'lostReason.name']),
+    lossReason: pickText(raw, ['lossReason.name', 'lostReason.name', 'lossReason', 'lostReason']),
     _diagnostics: {
       keys: Object.keys(raw).slice(0, 60),
       stageCandidates: stageDiagnostics(raw)
