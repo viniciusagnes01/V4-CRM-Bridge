@@ -2,6 +2,7 @@
   const PANEL_ID = 'v4-moskit-real-sync-panel';
   const SHEET_ID = '1KLxctUK2ZGaM7jm1y2zj-StwLTgV6qP0PL1a-ZEnMmo';
   const TAB_KEY = 'v4_crm_bridge_target_tab';
+  const DEFAULT_LIMIT = 2000;
 
   function isSyncPage() {
     const title = document.querySelector('.top h2');
@@ -51,17 +52,9 @@
         crmTab: targetTab()
       },
       integration: {
-        crm: 'moskit',
-        stages: {
-          lead: ['Novo Lead'],
-          mql: ['Primeiro Contato', 'Qualificação', '373595'],
-          sql: ['Apresentação/agendamento de reunião'],
-          opportunity: ['Envio de Proposta', 'Reunião de Alinhamento', 'Enviar Contrato', 'Aguardando Assinatura'],
-          won: ['Ganhou', 'WON'],
-          lost: ['Perdeu', 'LOST', '370524']
-        }
+        crm: 'moskit'
       },
-      limit: 10,
+      limit: DEFAULT_LIMIT,
       writeToSheet,
       writeMode: 'upsert',
       includeDiagnostics: !writeToSheet
@@ -89,7 +82,7 @@
     const buttons = document.querySelectorAll('[data-moskit-action]');
     const tab = targetTab();
     buttons.forEach(button => button.disabled = true);
-    out.textContent = writeToSheet ? 'Atualizando ' + tab + '...' : 'Consultando Moskit...';
+    out.textContent = writeToSheet ? 'Atualizando ' + tab + '...' : 'Consultando funil inteiro no Moskit...';
 
     try {
       const response = await fetch('/api/sync', {
@@ -123,7 +116,7 @@
       <div class="card-head">
         <div>
           <h3>Moskit · YouSafer</h3>
-          <p class="muted">Integração real com upsert por Lead ID e destino controlado.</p>
+          <p class="muted">Integração real com upsert por Lead ID e destino controlado. Busca até ${DEFAULT_LIMIT} negócios do funil V4 - Tráfego.</p>
         </div>
         <span class="chip">Produção assistida</span>
       </div>
@@ -143,7 +136,7 @@
         <div class="notice" id="v4-moskit-warning" style="align-self:end;">Modo seguro: dados serão gravados apenas na TESTE_BASE_CRM.</div>
       </div>
       <div class="actions form-actions">
-        <button class="btn secondary" data-moskit-action="preview">Rodar prévia</button>
+        <button class="btn secondary" data-moskit-action="preview">Rodar prévia completa</button>
         <button class="btn primary" data-moskit-action="sync">Atualizar TESTE_BASE_CRM</button>
       </div>
       <pre id="v4-moskit-real-sync-output" style="white-space:pre-wrap;word-break:break-word;margin-top:14px;max-height:360px;overflow:auto;background:#080a08;border:1px solid var(--line);border-radius:14px;padding:14px;color:var(--text);">Nenhuma execução nesta sessão.</pre>
