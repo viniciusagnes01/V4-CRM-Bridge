@@ -1,0 +1,8 @@
+Trigger production redeploy with latest V4 CRM Bridge fixes.
+
+Includes:
+- Moskit full funnel sync
+- debug Moskit endpoint
+- cache-busting UI
+- no per-deal detail calls on full sync
+- BASE_CRM upsert improvements
