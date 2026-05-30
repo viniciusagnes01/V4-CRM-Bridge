@@ -1,0 +1,7 @@
+Trigger Vercel production deployment from the repository connected to the Vercel project.
+
+Latest fixes included:
+- health Moskit debug
+- full Moskit funnel sync
+- cache busting
+- no per-deal detail calls on full sync
