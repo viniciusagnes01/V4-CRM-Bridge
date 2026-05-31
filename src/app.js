@@ -1,23 +1,25 @@
 const STORE = 'v4_crm_bridge_internal_v3';
 
-const crmOptions = [
-  'Moskit',
-  'Kommo',
-  'SULTS',
-  'Bitrix',
-  'C2S / Contact2Sale',
-  'HubSpot',
-  'PipeDrive',
-  'RD Station',
-  'IXC',
-  'OPA'
+const crmApps = [
+  { id: 'Moskit', name: 'Moskit', badge: 'MOS', description: 'Negócios, funis, etapas e responsáveis.', available: true },
+  { id: 'Kommo', name: 'Kommo', badge: 'KOM', description: 'Leads, pipelines e status do Kommo.', available: true },
+  { id: 'HubSpot', name: 'HubSpot', badge: 'HUB', description: 'Deals, pipelines e estágios.', available: true },
+  { id: 'PipeDrive', name: 'PipeDrive', badge: 'PIP', description: 'Negócios, pipelines e stages.', available: true },
+  { id: 'Bitrix', name: 'Bitrix', badge: 'BIT', description: 'Deals, categorias e estágios.', available: true },
+  { id: 'SULTS', name: 'SULTS', badge: 'SUL', description: 'Conector em preparação.', available: false },
+  { id: 'C2S / Contact2Sale', name: 'C2S / Contact2Sale', badge: 'C2S', description: 'Conector em preparação.', available: false },
+  { id: 'RD Station', name: 'RD Station', badge: 'RD', description: 'Conector futuro.', available: false },
+  { id: 'IXC', name: 'IXC', badge: 'IXC', description: 'Conector futuro.', available: false },
+  { id: 'OPA', name: 'OPA', badge: 'OPA', description: 'Conector futuro.', available: false }
 ];
+
+const crmOptions = crmApps.map(app => app.name);
 
 const tabs = [
   { id: 'dashboard', label: 'Visão Geral', title: 'Visão Geral', subtitle: 'Operação CRM, GrowthPack e BASE_CRM.', icon: 'i-dashboard', color: 'v4' },
   { id: 'accounts', label: 'Accounts', title: 'Accounts', subtitle: 'Responsáveis por clientes e projetos.', icon: 'i-accounts', color: 'blue' },
   { id: 'clients', label: 'Clientes', title: 'Clientes', subtitle: 'GrowthPacks e projetos conectados.', icon: 'i-clients', color: 'orange' },
-  { id: 'integrations', label: 'Integrações', title: 'Integrações CRM', subtitle: 'CRM, funil, etapas e credencial segura.', icon: 'i-crm', color: 'v4' },
+  { id: 'integrations', label: 'Integrações', title: 'Integrações CRM', subtitle: 'Conecte apps, escolha funis, mapeie campos e ative automações.', icon: 'i-crm', color: 'v4' },
   { id: 'mapping', label: 'Mapeamento', title: 'Mapeamento', subtitle: 'Contrato de campos da BASE_CRM.', icon: 'i-map', color: 'blue' },
   { id: 'sync', label: 'Sincronização', title: 'Sincronização', subtitle: 'Coleta, normalização e envio controlado.', icon: 'i-sync', color: 'v4' },
   { id: 'audit', label: 'Auditoria', title: 'Auditoria', subtitle: 'Riscos, pendências e qualidade do funil.', icon: 'i-audit', color: 'red' },
@@ -29,6 +31,7 @@ const baseFields = [
   ['Data', 'created_at', 'Data do registro'],
   ['Lead ID', 'id', 'Chave única'],
   ['Nome', 'name', 'Lead ou oportunidade'],
+  ['Nome da Empresa', 'companyName', 'Empresa ou negócio'],
   ['Valor', 'value', 'Valor comercial'],
   ['LEAD', 'stage_lead', 'Etapa Lead'],
   ['MQL', 'stage_mql', 'Etapa MQL'],
@@ -41,6 +44,14 @@ const baseFields = [
   ['RESPONSAVEL', 'owner', 'Dono do lead'],
   ['MOTIVO DE PERDA', 'loss_reason', 'Motivo registrado']
 ];
+
+const defaultCredentialNames = {
+  Moskit: 'MOSKIT_ACCESS_KEY',
+  Kommo: 'KOMMO_ACCESS_TOKEN',
+  HubSpot: 'HUBSPOT_ACCESS_TOKEN',
+  PipeDrive: 'PIPEDRIVE_API_TOKEN',
+  Bitrix: 'BITRIX_WEBHOOK_URL'
+};
 
 const initialState = {
   tab: 'dashboard',
@@ -112,11 +123,12 @@ function seedInternalBase() {
     { name: 'Account V4', email: 'account@v4company.com', role: 'Account', status: 'Ativo' }
   ];
   state.clients = [
+    { name: 'YouSafer', account: 'vinicius.agnes@v4company.com', sheet: 'GrowthPack V26', status: 'Ativo', lastSync: '', records: 0 },
     { name: 'ST1 Internet', account: 'vinicius.agnes@v4company.com', sheet: 'GrowthPack ST1 Internet', status: 'Ativo', lastSync: '', records: 0 },
     { name: 'Cliente Piloto', account: 'account@v4company.com', sheet: 'GrowthPack Cliente Piloto', status: 'Implantação', lastSync: '', records: 0 }
   ];
   state.integrations = [
-    { client: 'ST1 Internet', crm: 'Kommo', alias: 'KOMMO_ACCESS_TOKEN', pipeline: 'Inside Sales', pipelineName: 'Inside Sales', status: 'Ativo' }
+    { client: 'YouSafer', crm: 'Moskit', alias: 'MOSKIT_ACCESS_KEY', pipeline: 'v4-trafego', pipelineName: 'V4 - Tráfego', trigger: 'Todos os negócios do funil', destination: 'TESTE_BASE_CRM', frequency: 'A cada 10 minutos', status: 'Ativo' }
   ];
   state.logs.unshift({ type: 'success', message: 'Base de exemplo carregada.', at: new Date().toLocaleString('pt-BR') });
   setState(state);
@@ -168,17 +180,22 @@ function selectedPipelineName() {
 function submitIntegration(event) {
   event.preventDefault();
   const state = getState();
+  const crm = document.getElementById('integrationCrm').value;
+  const pipelineName = selectedPipelineName();
   state.integrations.unshift({
     client: document.getElementById('integrationClient').value,
-    crm: document.getElementById('integrationCrm').value,
-    alias: document.getElementById('integrationAlias').value,
+    crm,
+    alias: document.getElementById('integrationAlias').value || defaultCredentialNames[crm] || '',
     pipeline: document.getElementById('integrationPipeline').value,
-    pipelineName: selectedPipelineName(),
+    pipelineName,
+    trigger: document.getElementById('integrationTrigger').value,
+    destination: document.getElementById('integrationDestination').value,
+    frequency: document.getElementById('integrationFrequency').value,
     status: document.getElementById('integrationStatus').value
   });
   event.target.reset();
   setState(state);
-  addLog('success', 'Integração cadastrada.');
+  addLog('success', `Automação ${crm} → BASE_CRM cadastrada.`);
 }
 
 function syncClient(clientName) {
@@ -311,7 +328,7 @@ function pageDashboard() {
         <div class="card-head"><h3>Próximas ações</h3><span class="chip">V4</span></div>
         <div class="action-list">
           <button onclick="setTab('clients')"><span>Cadastrar cliente</span><b>GrowthPack</b></button>
-          <button onclick="setTab('integrations')"><span>Conectar CRM</span><b>Credencial segura</b></button>
+          <button onclick="setTab('integrations')"><span>Conectar CRM</span><b>App + funil</b></button>
           <button onclick="setTab('mapping')"><span>Validar campos</span><b>BASE_CRM</b></button>
         </div>
       </div>
@@ -368,33 +385,135 @@ function pageClients() {
   `;
 }
 
+function appCard(app) {
+  return `
+    <button type="button" class="app-card ${app.id === 'Moskit' ? 'selected' : ''}" data-crm-app="${escapeHtml(app.id)}" onclick="selectIntegrationCrm('${escapeHtml(app.id)}')">
+      <span class="app-logo">${escapeHtml(app.badge)}</span>
+      <strong>${escapeHtml(app.name)}</strong>
+      <small>${escapeHtml(app.description)}</small>
+      <em>${app.available ? 'Disponível' : 'Em breve'}</em>
+    </button>
+  `;
+}
+
+function automationFieldRows() {
+  return baseFields.map(field => `
+    <tr>
+      <td>${escapeHtml(field[0])}</td>
+      <td><select><option>${escapeHtml(field[1])}</option><option>Não mapear</option><option>Valor fixo</option></select></td>
+      <td>${escapeHtml(field[2])}</td>
+    </tr>
+  `).join('');
+}
+
 function pageIntegrations() {
   const state = getState();
+  const clientOptions = state.clients.length
+    ? state.clients.map(client => `<option>${escapeHtml(client.name)}</option>`).join('')
+    : '<option>YouSafer</option>';
+
   return `
-    <section class="grid two">
-      <form class="card" onsubmit="submitIntegration(event)">
-        <h3>Nova integração</h3>
-        <label>Cliente</label><select id="integrationClient">${state.clients.map(client => `<option>${escapeHtml(client.name)}</option>`).join('')}</select>
-        <div class="form2">
-          <div><label>CRM</label><select id="integrationCrm">${crmOptions.map(crm => `<option>${escapeHtml(crm)}</option>`).join('')}</select></div>
-          <div><label>Status</label><select id="integrationStatus"><option>Ativo</option><option>Pendente</option><option>Erro</option><option>Pausado</option></select></div>
-        </div>
-        <label>Nome da credencial</label><input id="integrationAlias" required placeholder="Ex: MOSKIT_ACCESS_KEY ou KOMMO_ACCESS_TOKEN">
-        <div class="notice">Use o nome da variável salva na Vercel. Para teste rápido, cole uma credencial temporária abaixo; ela não será salva na integração.</div>
-        <label>Credencial temporária para buscar funis</label><input id="integrationSecret" type="password" placeholder="Token/API key/webhook URL temporário">
-        <label>Base URL / Webhook URL, quando necessário</label><input id="integrationBaseUrl" placeholder="Ex: https://suaempresa.kommo.com ou webhook Bitrix">
-        <label>Funil</label><input id="integrationPipeline" placeholder="Escolha após buscar funis">
-        <div id="v4-pipeline-selector-wrap"></div>
-        <div class="actions form-actions">
-          <button class="btn secondary" type="button" onclick="loadCrmPipelines()">Buscar funis e etapas</button>
-          <button class="btn primary">Salvar</button>
-        </div>
-        <pre id="v4-crm-catalog-results" style="white-space:pre-wrap;word-break:break-word;margin-top:10px;max-height:280px;overflow:auto;background:#080a08;border:1px solid var(--line);border-radius:14px;padding:14px;color:var(--text);">Selecione um CRM e clique em Buscar funis e etapas.</pre>
-      </form>
-      <div class="card">
-        <div class="card-head"><h3>Conexões</h3><span class="chip">${state.integrations.length}</span></div>
-        <div class="list">${state.integrations.map(item => `<article class="item"><div><h4>${escapeHtml(item.client)}</h4><p>${escapeHtml(item.crm)} · ${escapeHtml(item.pipelineName || item.pipeline || 'Sem funil')}</p><span class="pill ${statusClass(item.status)}">${escapeHtml(item.status)}</span></div></article>`).join('') || '<div class="empty">Nenhuma integração.</div>'}</div>
+    <section class="automation-hero card">
+      <div>
+        <span class="eyebrow">Criador de automação</span>
+        <h3>Conecte um CRM ao GrowthPack em poucos passos</h3>
+        <p class="muted">Escolha o app, conecte a conta, selecione o funil, confira o mapeamento e ative a rotina de atualização.</p>
       </div>
+      <button class="btn primary" onclick="document.getElementById('integration-builder').scrollIntoView({behavior:'smooth'})">Criar automação</button>
+    </section>
+
+    <form id="integration-builder" class="card automation-builder" onsubmit="submitIntegration(event)">
+      <input type="hidden" id="integrationCrm" value="Moskit">
+      <input type="hidden" id="integrationPipeline" value="">
+
+      <div class="builder-step">
+        <div class="step-index">1</div>
+        <div class="step-body">
+          <h3>Escolha o app de origem</h3>
+          <p class="muted">De onde os negócios serão buscados?</p>
+          <div class="app-grid">${crmApps.map(appCard).join('')}</div>
+        </div>
+      </div>
+
+      <div class="builder-step">
+        <div class="step-index">2</div>
+        <div class="step-body">
+          <h3>Escolha o cliente e o destino</h3>
+          <div class="form2">
+            <div><label>Cliente</label><select id="integrationClient">${clientOptions}</select></div>
+            <div><label>Destino</label><select id="integrationDestination"><option value="TESTE_BASE_CRM">GrowthPack · TESTE_BASE_CRM</option><option value="BASE_CRM">GrowthPack · BASE_CRM</option></select></div>
+          </div>
+          <div class="form2">
+            <div><label>Evento</label><select id="integrationTrigger"><option>Todos os negócios do funil</option><option>Novo negócio criado</option><option>Negócio mudou de etapa</option><option>Negócio ganho</option><option>Negócio perdido</option></select></div>
+            <div><label>Frequência</label><select id="integrationFrequency"><option>A cada 10 minutos</option><option>A cada 30 minutos</option><option>1 vez por hora</option><option>Manual</option></select></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="builder-step">
+        <div class="step-index">3</div>
+        <div class="step-body">
+          <h3>Conecte a conta</h3>
+          <p class="muted">Na operação normal, o usuário só clica para conectar. A credencial técnica fica escondida em “Configuração avançada”.</p>
+          <div class="connect-card">
+            <div>
+              <strong id="connect-title">Conectar Moskit</strong>
+              <span id="connect-subtitle">Use a credencial salva ou informe uma temporária apenas para buscar funis.</span>
+            </div>
+            <button class="btn secondary" type="button" onclick="toggleCredentialPanel()">Configuração avançada</button>
+          </div>
+          <div id="credential-panel" class="advanced-panel" hidden>
+            <div class="form2">
+              <div><label>Nome da credencial salva</label><input id="integrationAlias" placeholder="Ex: MOSKIT_ACCESS_KEY" value="MOSKIT_ACCESS_KEY"></div>
+              <div><label>Credencial temporária</label><input id="integrationSecret" type="password" placeholder="Token/API key/webhook URL temporário"></div>
+            </div>
+            <label>Base URL / Webhook URL quando necessário</label><input id="integrationBaseUrl" placeholder="Ex: https://suaempresa.kommo.com ou webhook Bitrix">
+          </div>
+        </div>
+      </div>
+
+      <div class="builder-step">
+        <div class="step-index">4</div>
+        <div class="step-body">
+          <h3>Escolha o funil</h3>
+          <p class="muted">O app busca os funis e etapas disponíveis no CRM conectado.</p>
+          <div class="actions form-actions">
+            <button class="btn secondary" type="button" onclick="loadCrmPipelines()">Buscar funis e etapas</button>
+            <button class="btn ghost" type="button" onclick="clearPipelineSelection()">Limpar seleção</button>
+          </div>
+          <div id="v4-pipeline-selector-wrap" class="pipeline-result empty">Nenhum funil carregado ainda.</div>
+          <pre id="v4-crm-catalog-results" class="catalog-output">Clique em “Buscar funis e etapas”.</pre>
+        </div>
+      </div>
+
+      <div class="builder-step">
+        <div class="step-index">5</div>
+        <div class="step-body">
+          <h3>Mapeie os campos</h3>
+          <p class="muted">O padrão já está preenchido para a BASE_CRM. Ajustes finos podem ser feitos depois.</p>
+          <div class="table compact-map"><table><thead><tr><th>Campo BASE_CRM</th><th>Campo do CRM</th><th>Uso</th></tr></thead><tbody>${automationFieldRows()}</tbody></table></div>
+        </div>
+      </div>
+
+      <div class="builder-step final-step">
+        <div class="step-index">6</div>
+        <div class="step-body">
+          <h3>Teste e ative</h3>
+          <div class="form2">
+            <div><label>Status</label><select id="integrationStatus"><option>Ativo</option><option>Pendente</option><option>Erro</option><option>Pausado</option></select></div>
+            <div><label>Rotina automática</label><input value="A cada 10 minutos quando ativo" readonly></div>
+          </div>
+          <div class="actions form-actions">
+            <button class="btn secondary" type="button" onclick="testAutomationDraft()">Testar automação</button>
+            <button class="btn primary">Ativar automação</button>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <section class="card">
+      <div class="card-head"><h3>Automações criadas</h3><span class="chip">${state.integrations.length}</span></div>
+      <div class="list">${state.integrations.map(item => `<article class="item"><div><h4>${escapeHtml(item.client)}</h4><p>${escapeHtml(item.crm)} → ${escapeHtml(item.destination || 'BASE_CRM')} · ${escapeHtml(item.pipelineName || item.pipeline || 'Sem funil')}</p><p>${escapeHtml(item.trigger || 'Todos os negócios do funil')} · ${escapeHtml(item.frequency || 'Manual')}</p><span class="pill ${statusClass(item.status)}">${escapeHtml(item.status)}</span></div><div class="item-actions"><button class="btn secondary small" onclick="setTab('sync')">Sincronizar</button></div></article>`).join('') || '<div class="empty">Nenhuma automação criada.</div>'}</div>
     </section>
   `;
 }
@@ -468,6 +587,37 @@ function render() {
   document.getElementById('app').innerHTML = layout((pages[state.tab] || pageDashboard)());
 }
 
+function selectIntegrationCrm(crm) {
+  const input = document.getElementById('integrationCrm');
+  const alias = document.getElementById('integrationAlias');
+  const title = document.getElementById('connect-title');
+  const subtitle = document.getElementById('connect-subtitle');
+  if (input) input.value = crm;
+  if (alias) alias.value = defaultCredentialNames[crm] || '';
+  if (title) title.textContent = `Conectar ${crm}`;
+  if (subtitle) subtitle.textContent = crm === 'Bitrix' ? 'Use a URL do webhook do Bitrix na configuração avançada.' : 'Use uma conta conectada ou uma credencial temporária para buscar funis.';
+  document.querySelectorAll('[data-crm-app]').forEach(card => card.classList.toggle('selected', card.dataset.crmApp === crm));
+  clearPipelineSelection(false);
+}
+
+function toggleCredentialPanel() {
+  const panel = document.getElementById('credential-panel');
+  if (!panel) return;
+  panel.hidden = !panel.hidden;
+}
+
+function clearPipelineSelection(clearOutput = true) {
+  const wrap = document.getElementById('v4-pipeline-selector-wrap');
+  const pipelineInput = document.getElementById('integrationPipeline');
+  const out = document.getElementById('v4-crm-catalog-results');
+  if (pipelineInput) {
+    pipelineInput.value = '';
+    pipelineInput.dataset.pipelineName = '';
+  }
+  if (wrap) wrap.className = 'pipeline-result empty', wrap.innerHTML = 'Nenhum funil carregado ainda.';
+  if (clearOutput && out) out.textContent = 'Clique em “Buscar funis e etapas”.';
+}
+
 function formatPipelineCatalog(data) {
   if (!data || !data.ok) return JSON.stringify(data, null, 2);
   const pipelines = data.pipelines || [];
@@ -487,7 +637,12 @@ function renderPipelineSelector(pipelines) {
   if (!wrap || !pipelineInput) return;
 
   wrap.innerHTML = '';
-  if (!pipelines || !pipelines.length) return;
+  wrap.className = 'pipeline-result';
+  if (!pipelines || !pipelines.length) {
+    wrap.className = 'pipeline-result empty';
+    wrap.textContent = 'Nenhum funil retornado pelo CRM.';
+    return;
+  }
 
   const select = document.createElement('select');
   select.id = 'v4-pipeline-selector';
@@ -497,13 +652,26 @@ function renderPipelineSelector(pipelines) {
     if (!selected) return;
     pipelineInput.value = selected.id;
     pipelineInput.dataset.pipelineName = selected.name;
+    renderStageChips(selected.stages || []);
   });
 
   const label = document.createElement('label');
   label.textContent = 'Selecionar funil encontrado';
+  const chips = document.createElement('div');
+  chips.id = 'v4-stage-chips';
+  chips.className = 'stage-chips';
   wrap.appendChild(label);
   wrap.appendChild(select);
+  wrap.appendChild(chips);
   select.dispatchEvent(new Event('change'));
+}
+
+function renderStageChips(stages) {
+  const chips = document.getElementById('v4-stage-chips');
+  if (!chips) return;
+  chips.innerHTML = stages.length
+    ? stages.map(stage => `<span>${escapeHtml(stage.name || stage.id)}</span>`).join('')
+    : '<small>Sem etapas retornadas.</small>';
 }
 
 async function loadCrmPipelines() {
@@ -529,6 +697,22 @@ async function loadCrmPipelines() {
   }
 }
 
+function testAutomationDraft() {
+  const crm = document.getElementById('integrationCrm')?.value || 'CRM';
+  const pipeline = selectedPipelineName() || 'funil não selecionado';
+  const out = document.getElementById('v4-crm-catalog-results');
+  const result = {
+    ok: Boolean(selectedPipelineName()),
+    crm,
+    pipeline,
+    destination: document.getElementById('integrationDestination')?.value || 'TESTE_BASE_CRM',
+    message: selectedPipelineName()
+      ? 'Pré-validação ok. A automação pode ser ativada.'
+      : 'Busque e selecione um funil antes de ativar.'
+  };
+  if (out) out.textContent = JSON.stringify(result, null, 2);
+}
+
 window.setTab = setTab;
 window.seedInternalBase = seedInternalBase;
 window.exportState = exportState;
@@ -539,6 +723,10 @@ window.syncClient = syncClient;
 window.syncAll = syncAll;
 window.runAudit = runAudit;
 window.saveSettings = saveSettings;
+window.selectIntegrationCrm = selectIntegrationCrm;
+window.toggleCredentialPanel = toggleCredentialPanel;
+window.clearPipelineSelection = clearPipelineSelection;
 window.loadCrmPipelines = loadCrmPipelines;
+window.testAutomationDraft = testAutomationDraft;
 
 render();
