@@ -10,6 +10,13 @@
     return document.querySelector('form.card[onsubmit="submitIntegration(event)"]');
   }
 
+  function relabelCredentialField(aliasInput) {
+    const labels = [...document.querySelectorAll('label')];
+    const currentLabel = labels.find(label => label.textContent.trim().toLowerCase() === 'alias seguro');
+    if (currentLabel) currentLabel.textContent = 'Nome da credencial';
+    aliasInput.placeholder = 'Ex: MOSKIT_ACCESS_KEY, KOMMO_ACCESS_TOKEN ou HUBSPOT_ACCESS_TOKEN';
+  }
+
   function ensureDiscoveryUi() {
     if (!isIntegrationsPage()) return;
     const form = getForm();
@@ -19,13 +26,13 @@
     const pipelineInput = document.getElementById('integrationPipeline');
     if (!aliasInput || !pipelineInput) return;
 
-    aliasInput.placeholder = 'Ex: MOSKIT_ACCESS_KEY ou HUBSPOT_ACCESS_TOKEN';
+    relabelCredentialField(aliasInput);
     pipelineInput.placeholder = 'Escolha após buscar funis';
     pipelineInput.readOnly = false;
 
     const help = document.createElement('div');
     help.className = 'notice';
-    help.innerHTML = 'Use <strong>Alias seguro</strong> para informar o nome da variável salva na Vercel. Para teste rápido, cole uma credencial temporária abaixo; ela não será salva na integração.';
+    help.innerHTML = 'Use <strong>Nome da credencial</strong> para informar a variável salva na Vercel. Exemplo: <strong>MOSKIT_ACCESS_KEY</strong>. Para teste rápido, cole uma credencial temporária abaixo; ela não será salva na integração.';
     aliasInput.insertAdjacentElement('afterend', help);
 
     const secretWrap = document.createElement('div');
