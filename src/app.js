@@ -116,7 +116,7 @@ function seedInternalBase() {
     { name: 'Cliente Piloto', account: 'account@v4company.com', sheet: 'GrowthPack Cliente Piloto', status: 'Implantação', lastSync: '', records: 0 }
   ];
   state.integrations = [
-    { client: 'ST1 Internet', crm: 'Kommo', alias: 'st1_kommo', pipeline: 'Inside Sales', status: 'Ativo' }
+    { client: 'ST1 Internet', crm: 'Kommo', alias: 'KOMMO_ACCESS_TOKEN', pipeline: 'Inside Sales', pipelineName: 'Inside Sales', status: 'Ativo' }
   ];
   state.logs.unshift({ type: 'success', message: 'Base de exemplo carregada.', at: new Date().toLocaleString('pt-BR') });
   setState(state);
@@ -160,6 +160,11 @@ function submitClient(event) {
   addLog('success', 'Cliente cadastrado.');
 }
 
+function selectedPipelineName() {
+  const pipelineInput = document.getElementById('integrationPipeline');
+  return pipelineInput?.dataset?.pipelineName || pipelineInput?.value || '';
+}
+
 function submitIntegration(event) {
   event.preventDefault();
   const state = getState();
@@ -168,6 +173,7 @@ function submitIntegration(event) {
     crm: document.getElementById('integrationCrm').value,
     alias: document.getElementById('integrationAlias').value,
     pipeline: document.getElementById('integrationPipeline').value,
+    pipelineName: selectedPipelineName(),
     status: document.getElementById('integrationStatus').value
   });
   event.target.reset();
@@ -373,13 +379,21 @@ function pageIntegrations() {
           <div><label>CRM</label><select id="integrationCrm">${crmOptions.map(crm => `<option>${escapeHtml(crm)}</option>`).join('')}</select></div>
           <div><label>Status</label><select id="integrationStatus"><option>Ativo</option><option>Pendente</option><option>Erro</option><option>Pausado</option></select></div>
         </div>
-        <label>Alias seguro</label><input id="integrationAlias" required placeholder="identificador interno">
-        <label>Funil</label><input id="integrationPipeline" placeholder="Nome ou ID">
-        <div class="actions form-actions"><button class="btn primary">Salvar</button></div>
+        <label>Nome da credencial</label><input id="integrationAlias" required placeholder="Ex: MOSKIT_ACCESS_KEY ou KOMMO_ACCESS_TOKEN">
+        <div class="notice">Use o nome da variável salva na Vercel. Para teste rápido, cole uma credencial temporária abaixo; ela não será salva na integração.</div>
+        <label>Credencial temporária para buscar funis</label><input id="integrationSecret" type="password" placeholder="Token/API key/webhook URL temporário">
+        <label>Base URL / Webhook URL, quando necessário</label><input id="integrationBaseUrl" placeholder="Ex: https://suaempresa.kommo.com ou webhook Bitrix">
+        <label>Funil</label><input id="integrationPipeline" placeholder="Escolha após buscar funis">
+        <div id="v4-pipeline-selector-wrap"></div>
+        <div class="actions form-actions">
+          <button class="btn secondary" type="button" onclick="loadCrmPipelines()">Buscar funis e etapas</button>
+          <button class="btn primary">Salvar</button>
+        </div>
+        <pre id="v4-crm-catalog-results" style="white-space:pre-wrap;word-break:break-word;margin-top:10px;max-height:280px;overflow:auto;background:#080a08;border:1px solid var(--line);border-radius:14px;padding:14px;color:var(--text);">Selecione um CRM e clique em Buscar funis e etapas.</pre>
       </form>
       <div class="card">
         <div class="card-head"><h3>Conexões</h3><span class="chip">${state.integrations.length}</span></div>
-        <div class="list">${state.integrations.map(item => `<article class="item"><div><h4>${escapeHtml(item.client)}</h4><p>${escapeHtml(item.crm)} · ${escapeHtml(item.pipeline || 'Sem funil')}</p><span class="pill ${statusClass(item.status)}">${escapeHtml(item.status)}</span></div></article>`).join('') || '<div class="empty">Nenhuma integração.</div>'}</div>
+        <div class="list">${state.integrations.map(item => `<article class="item"><div><h4>${escapeHtml(item.client)}</h4><p>${escapeHtml(item.crm)} · ${escapeHtml(item.pipelineName || item.pipeline || 'Sem funil')}</p><span class="pill ${statusClass(item.status)}">${escapeHtml(item.status)}</span></div></article>`).join('') || '<div class="empty">Nenhuma integração.</div>'}</div>
       </div>
     </section>
   `;
@@ -454,6 +468,67 @@ function render() {
   document.getElementById('app').innerHTML = layout((pages[state.tab] || pageDashboard)());
 }
 
+function formatPipelineCatalog(data) {
+  if (!data || !data.ok) return JSON.stringify(data, null, 2);
+  const pipelines = data.pipelines || [];
+  if (!pipelines.length) return 'Nenhum funil retornado pelo CRM.';
+  return pipelines.map((pipeline, index) => {
+    const stages = pipeline.stages || [];
+    return [
+      `${index + 1}. ${pipeline.name} (${pipeline.id})`,
+      ...stages.map(stage => `   - ${stage.name || stage.id} (${stage.id})`)
+    ].join('\n');
+  }).join('\n\n');
+}
+
+function renderPipelineSelector(pipelines) {
+  const wrap = document.getElementById('v4-pipeline-selector-wrap');
+  const pipelineInput = document.getElementById('integrationPipeline');
+  if (!wrap || !pipelineInput) return;
+
+  wrap.innerHTML = '';
+  if (!pipelines || !pipelines.length) return;
+
+  const select = document.createElement('select');
+  select.id = 'v4-pipeline-selector';
+  select.innerHTML = pipelines.map((pipeline, index) => `<option value="${index}">${escapeHtml(pipeline.name)} · ${escapeHtml(pipeline.id)}</option>`).join('');
+  select.addEventListener('change', () => {
+    const selected = pipelines[Number(select.value)];
+    if (!selected) return;
+    pipelineInput.value = selected.id;
+    pipelineInput.dataset.pipelineName = selected.name;
+  });
+
+  const label = document.createElement('label');
+  label.textContent = 'Selecionar funil encontrado';
+  wrap.appendChild(label);
+  wrap.appendChild(select);
+  select.dispatchEvent(new Event('change'));
+}
+
+async function loadCrmPipelines() {
+  const out = document.getElementById('v4-crm-catalog-results');
+  const crm = document.getElementById('integrationCrm')?.value || '';
+  const credentialAlias = document.getElementById('integrationAlias')?.value || '';
+  const secret = document.getElementById('integrationSecret')?.value || '';
+  const baseUrl = document.getElementById('integrationBaseUrl')?.value || '';
+
+  if (out) out.textContent = 'Buscando funis e etapas...';
+
+  try {
+    const response = await fetch('/api/catalog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ crm, credentialAlias, secret, baseUrl })
+    });
+    const data = await response.json();
+    renderPipelineSelector(data.pipelines || []);
+    if (out) out.textContent = formatPipelineCatalog(data);
+  } catch (error) {
+    if (out) out.textContent = JSON.stringify({ ok: false, message: error.message }, null, 2);
+  }
+}
+
 window.setTab = setTab;
 window.seedInternalBase = seedInternalBase;
 window.exportState = exportState;
@@ -464,5 +539,6 @@ window.syncClient = syncClient;
 window.syncAll = syncAll;
 window.runAudit = runAudit;
 window.saveSettings = saveSettings;
+window.loadCrmPipelines = loadCrmPipelines;
 
 render();
