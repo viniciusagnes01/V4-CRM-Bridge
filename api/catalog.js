@@ -25,6 +25,8 @@ function credentialFromRequest({ crm, credentialAlias, secret }) {
     `${normalizedCrm}_TOKEN`,
     `${normalizedCrm}_WEBHOOK_URL`,
     'MOSKIT_ACCESS_KEY',
+    'KOMMO_ACCESS_KEY',
+    'KOMMO_ACCESS_TOKEN',
     'HUBSPOT_ACCESS_TOKEN',
     'PIPEDRIVE_API_TOKEN',
     'BITRIX_WEBHOOK_URL'
@@ -85,6 +87,27 @@ function moskitCatalog() {
       }
     ]
   };
+}
+
+async function kommoCatalog({ credential, baseUrl }) {
+  if (!credential) throw new Error('Informe KOMMO_ACCESS_KEY/KOMMO_ACCESS_TOKEN ou token temporário.');
+  if (!baseUrl) throw new Error('Informe a Base URL da Kommo, exemplo: https://suaempresa.kommo.com');
+
+  const base = String(baseUrl).replace(/\/$/, '');
+  const data = await fetchJson(`${base}/api/v4/leads/pipelines`, {
+    headers: { Authorization: `Bearer ${credential}`, Accept: 'application/json' }
+  });
+
+  const pipelines = listFrom(data, ['_embedded.pipelines']).map(pipeline => ({
+    id: String(pipeline.id || ''),
+    name: pipeline.name || String(pipeline.id || ''),
+    stages: listFrom(pipeline, ['_embedded.statuses', 'statuses']).map(status => ({
+      id: String(status.id || ''),
+      name: status.name || String(status.id || '')
+    }))
+  }));
+
+  return { ok: true, crm: 'Kommo', pipelines };
 }
 
 async function hubspotCatalog({ credential }) {
@@ -175,6 +198,7 @@ export default async function handler(req, res) {
     const baseUrl = body.baseUrl || '';
 
     if (normalized === 'moskit') return send(res, 200, moskitCatalog());
+    if (normalized === 'kommo') return send(res, 200, await kommoCatalog({ credential, baseUrl }));
     if (normalized === 'hubspot') return send(res, 200, await hubspotCatalog({ credential }));
     if (normalized === 'pipedrive') return send(res, 200, await pipedriveCatalog({ credential, baseUrl }));
     if (normalized === 'bitrix') return send(res, 200, await bitrixCatalog({ credential, baseUrl }));
