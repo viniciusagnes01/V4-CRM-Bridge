@@ -19,20 +19,38 @@
     return client.growthpackUrl || client.sheet || '';
   }
 
+  function defaultAlias(crm) {
+    const value = String(crm || '').toLowerCase();
+    if (value.includes('kommo')) return 'KOMMO_ACCESS_TOKEN';
+    if (value.includes('moskit')) return 'MOSKIT_ACCESS_KEY';
+    if (value.includes('hubspot')) return 'HUBSPOT_ACCESS_TOKEN';
+    if (value.includes('pipedrive')) return 'PIPEDRIVE_API_TOKEN';
+    if (value.includes('bitrix')) return 'BITRIX_WEBHOOK_URL';
+    return '';
+  }
+
   function ensureBaseInputs() {
     document.querySelectorAll('#dynamic-sync-screen article.item').forEach((card, index) => {
       if (card.querySelector(`[data-base-url-index="${index}"]`)) return;
       const state = readState();
       const item = (state.integrations || [])[index] || {};
       const crm = String(item.crm || '').toLowerCase();
-      if (!crm.includes('kommo') && !crm.includes('pipedrive') && !crm.includes('bitrix')) return;
+      if (!crm.includes('kommo') && !crm.includes('pipedrive') && !crm.includes('bitrix') && !crm.includes('hubspot') && !crm.includes('moskit')) return;
       const pre = card.querySelector('pre');
       const row = document.createElement('div');
       row.style.gridColumn = '1/-1';
       row.style.margin = '10px 0 0';
       row.innerHTML = `
-        <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:900;margin-bottom:6px;">Base URL do CRM</label>
-        <input data-base-url-index="${index}" value="${item.baseUrl || ''}" placeholder="Ex: https://suaempresa.kommo.com" style="width:100%;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:900;margin-bottom:6px;">Base URL do CRM</label>
+            <input data-base-url-index="${index}" value="${item.baseUrl || ''}" placeholder="Ex: https://suaempresa.kommo.com" style="width:100%;">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:900;margin-bottom:6px;">Nome da credencial</label>
+            <input data-credential-index="${index}" value="${item.alias || item.credentialAlias || defaultAlias(item.crm)}" placeholder="Ex: KOMMO_ACCESS_TOKEN" style="width:100%;">
+          </div>
+        </div>
       `;
       if (pre) card.insertBefore(row, pre);
       else card.appendChild(row);
@@ -46,8 +64,11 @@
     if (!item) return;
 
     const baseInput = document.querySelector(`[data-base-url-index="${index}"]`);
+    const credentialInput = document.querySelector(`[data-credential-index="${index}"]`);
     const baseUrl = baseInput ? baseInput.value.trim() : (item.baseUrl || '');
+    const credentialAlias = credentialInput ? credentialInput.value.trim() : (item.alias || item.credentialAlias || defaultAlias(item.crm));
     item.baseUrl = baseUrl;
+    item.alias = credentialAlias;
     saveState(state);
 
     const body = {
@@ -58,6 +79,7 @@
       },
       integration: {
         crm: String(item.crm || '').toLowerCase(),
+        credentialAlias,
         baseUrl,
         pipelineId: item.pipeline || ''
       },
@@ -77,6 +99,10 @@
     }
     if (String(body.integration.crm).includes('kommo') && !body.integration.baseUrl) {
       if (out) out.textContent = JSON.stringify({ ok: false, message: 'Informe a Base URL do Kommo. Ex: https://suaempresa.kommo.com' }, null, 2);
+      return;
+    }
+    if (!body.integration.credentialAlias) {
+      if (out) out.textContent = JSON.stringify({ ok: false, message: 'Informe o nome da credencial. Ex: KOMMO_ACCESS_TOKEN' }, null, 2);
       return;
     }
 
