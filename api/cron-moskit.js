@@ -2,9 +2,20 @@ import syncHandler from './sync.js';
 
 export default async function handler(req, res) {
   const expected = process.env.CRON_SECRET;
-  const provided = req.headers['authorization'] || '';
+  const authorization = req.headers['authorization'] || '';
+  const querySecret = req.query && req.query.secret ? String(req.query.secret) : '';
 
-  if (expected && provided !== `Bearer ${expected}`) {
+  if (!expected) {
+    return res.status(500).json({
+      ok: false,
+      message: 'CRON_SECRET is not configured. Add it as an environment variable before using external cron.'
+    });
+  }
+
+  const authorizedByHeader = authorization === `Bearer ${expected}`;
+  const authorizedByQuery = querySecret === expected;
+
+  if (!authorizedByHeader && !authorizedByQuery) {
     return res.status(401).json({ ok: false, message: 'Unauthorized cron request.' });
   }
 
