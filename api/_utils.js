@@ -21,7 +21,7 @@ export function requiredEnv(name) {
 export function getGoogleAuth() {
   const email = requiredEnv('GOOGLE_SERVICE_ACCOUNT_EMAIL');
   const rawKey = requiredEnv('GOOGLE_PRIVATE_KEY');
-  const privateKey = rawKey.replace(/\\n/g, '\n');
+  const privateKey = rawKey.replace(/\n/g, '\n');
   return new google.auth.JWT({
     email,
     key: privateKey,
@@ -58,26 +58,77 @@ export function stageFlag(stageValues, target) {
   return currents.some(current => targets.some(item => normalizeText(item) === normalizeText(current))) ? 1 : 0;
 }
 
-export function toBaseCrmRow(record, stages = {}) {
+export function recordToBaseCrmObject(record, stages = {}) {
   const source = normalizeSource(record.source);
   const stageValues = [record.stage, record.stageId].filter(Boolean);
   const flags = record.baseCrmFlags || {};
+  return {
+    data: record.date || new Date().toISOString(),
+    leadId: record.id || '',
+    nome: record.name || '',
+    nomeDaEmpresa: record.companyName || '',
+    valor: Number(record.value || 0),
+    lead: Number(flags.lead ?? stageFlag(stageValues, stages.lead || 'lead')),
+    mql: Number(flags.mql ?? stageFlag(stageValues, stages.mql || 'mql')),
+    sql: Number(flags.sql ?? stageFlag(stageValues, stages.sql || 'sql')),
+    oportunidade: Number(flags.opportunity ?? stageFlag(stageValues, stages.opportunity || 'oportunidade')),
+    compra: Number(flags.won ?? stageFlag(stageValues, stages.won || 'compra')),
+    leadPerdido: Number(flags.lost ?? stageFlag(stageValues, stages.lost || 'perdido')),
+    metaAds: Number(record.sourceMeta ?? source.meta),
+    googleAds: Number(record.sourceGoogle ?? source.google),
+    responsavel: record.owner || '',
+    motivoDePerda: record.lossReason || ''
+  };
+}
 
+export function headerKey(header) {
+  const key = normalizeText(header).replace(/[^a-z0-9]/g, '');
+  const aliases = {
+    data: 'data',
+    leadid: 'leadId',
+    idlead: 'leadId',
+    id: 'leadId',
+    nome: 'nome',
+    nomedaempresa: 'nomeDaEmpresa',
+    empresa: 'nomeDaEmpresa',
+    valor: 'valor',
+    lead: 'lead',
+    mql: 'mql',
+    sql: 'sql',
+    oportunidade: 'oportunidade',
+    compra: 'compra',
+    leadperdido: 'leadPerdido',
+    perdido: 'leadPerdido',
+    metaads: 'metaAds',
+    googleads: 'googleAds',
+    responsavel: 'responsavel',
+    responsavelcomercial: 'responsavel',
+    motivodeperda: 'motivoDePerda',
+    perda: 'motivoDePerda'
+  };
+  return aliases[key] || key;
+}
+
+export function toBaseCrmRow(record, stages = {}, headers = null) {
+  const object = recordToBaseCrmObject(record, stages);
+  if (Array.isArray(headers) && headers.length) {
+    return headers.map(header => object[headerKey(header)] ?? '');
+  }
   return [
-    record.date || new Date().toISOString(),
-    record.id || '',
-    record.name || '',
-    record.companyName || '',
-    Number(record.value || 0),
-    Number(flags.lead ?? stageFlag(stageValues, stages.lead || 'lead')),
-    Number(flags.mql ?? stageFlag(stageValues, stages.mql || 'mql')),
-    Number(flags.sql ?? stageFlag(stageValues, stages.sql || 'sql')),
-    Number(flags.opportunity ?? stageFlag(stageValues, stages.opportunity || 'oportunidade')),
-    Number(flags.won ?? stageFlag(stageValues, stages.won || 'compra')),
-    Number(flags.lost ?? stageFlag(stageValues, stages.lost || 'perdido')),
-    Number(record.sourceMeta ?? source.meta),
-    Number(record.sourceGoogle ?? source.google),
-    record.owner || '',
-    record.lossReason || ''
+    object.data,
+    object.leadId,
+    object.nome,
+    object.nomeDaEmpresa,
+    object.valor,
+    object.lead,
+    object.mql,
+    object.sql,
+    object.oportunidade,
+    object.compra,
+    object.leadPerdido,
+    object.metaAds,
+    object.googleAds,
+    object.responsavel,
+    object.motivoDePerda
   ];
 }
