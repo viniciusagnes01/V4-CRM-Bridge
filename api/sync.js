@@ -1,32 +1,47 @@
 import { google } from 'googleapis';
 import { fetchKommoLeads } from './_kommo.js';
 import { fetchMoskitDeals } from './_moskit.js';
+import { fetchHubSpotDeals } from './_hubspot.js';
+import { fetchPipeDriveDeals } from './_pipedrive.js';
 import { extractSheetId, getGoogleAuth, readJson, send, toBaseCrmRow } from './_utils.js';
 
-function sampleRecords() {
-  return [
-    { id: 'demo-001', name: 'Lead Demo', value: 0, stage: 'lead', source: 'meta', owner: 'Account V4' },
-    { id: 'demo-002', name: 'Oportunidade Demo', value: 1500, stage: 'oportunidade', source: 'google', owner: 'Account V4' },
-    { id: 'demo-003', name: 'Compra Demo', value: 2500, stage: 'compra', source: 'google', owner: 'Account V4' }
-  ];
+function credential(integration, fallbackNames = []) {
+  const alias = integration.credentialAlias || integration.tokenAlias || '';
+  if (alias && process.env[alias]) return process.env[alias];
+  for (const name of fallbackNames) {
+    if (process.env[name]) return process.env[name];
+  }
+  return '';
 }
 
 async function getRecords({ integration, limit }) {
-  const crm = String(integration.crm || 'mock').toLowerCase();
+  const crm = String(integration.crm || '').toLowerCase().replace(/\s+/g, '');
 
   if (crm === 'kommo') {
-    const alias = integration.credentialAlias || integration.tokenAlias || '';
-    const key = alias ? process.env[alias] : process.env.KOMMO_ACCESS_KEY;
-    return fetchKommoLeads({ baseUrl: integration.baseUrl, accessKey: key, limit });
+    const key = credential(integration, ['KOMMO_ACCESS_TOKEN', 'KOMMO_ACCESS_KEY']);
+    return fetchKommoLeads({ baseUrl: integration.baseUrl, accessKey: key, limit, pipelineId: integration.pipelineId });
   }
 
   if (crm === 'moskit') {
-    const alias = integration.credentialAlias || integration.tokenAlias || '';
-    const key = alias ? process.env[alias] : process.env.MOSKIT_ACCESS_KEY;
+    const key = credential(integration, ['MOSKIT_ACCESS_KEY']);
     return fetchMoskitDeals({ baseUrl: integration.baseUrl, accessKey: key, limit, pipelineId: integration.pipelineId });
   }
 
-  return sampleRecords();
+  if (crm === 'hubspot') {
+    const key = credential(integration, ['HUBSPOT_ACCESS_TOKEN']);
+    return fetchHubSpotDeals({ accessKey: key, limit, pipelineId: integration.pipelineId });
+  }
+
+  if (crm === 'pipedrive') {
+    const key = credential(integration, ['PIPEDRIVE_API_TOKEN']);
+    return fetchPipeDriveDeals({ baseUrl: integration.baseUrl, accessKey: key, limit, pipelineId: integration.pipelineId });
+  }
+
+  if (crm === 'bitrix' || crm === 'sults' || crm.includes('c2s') || crm.includes('contact2sale')) {
+    throw new Error(`CRM ${integration.crm} is listed in the UI, but its real sync adapter is not enabled yet. Add the official API credentials/docs before syncing this CRM.`);
+  }
+
+  throw new Error(`Unsupported CRM: ${integration.crm || 'empty'}`);
 }
 
 function buildLeadIndex(values) {
@@ -55,95 +70,48 @@ async function writeRows({ growthpackUrl, tabName, rows, mode = 'upsert' }) {
   const valueInputOption = 'RAW';
 
   if (mode === 'rebuild') {
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId: sheetId,
-      range: `${targetTab}!A2:O50000`
-    });
-
+    await sheets.spreadsheets.values.clear({ spreadsheetId: sheetId, range: `${targetTab}!A2:O50000` });
     const batches = chunk(rows, 400);
     for (let index = 0; index < batches.length; index++) {
       const batch = batches[index];
       const startRow = 2 + index * 400;
       const endRow = startRow + batch.length - 1;
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: `${targetTab}!A${startRow}:O${endRow}`,
-        valueInputOption,
-        requestBody: { values: batch }
-      });
+      await sheets.spreadsheets.values.update({ spreadsheetId: sheetId, range: `${targetTab}!A${startRow}:O${endRow}`, valueInputOption, requestBody: { values: batch } });
     }
-
     return { appendedRows: rows.length, updatedRows: 0, clearedRows: true };
   }
 
   if (mode !== 'upsert') {
-    const result = await sheets.spreadsheets.values.append({
-      spreadsheetId: sheetId,
-      range,
-      valueInputOption,
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: { values: rows }
-    });
+    const result = await sheets.spreadsheets.values.append({ spreadsheetId: sheetId, range, valueInputOption, insertDataOption: 'INSERT_ROWS', requestBody: { values: rows } });
     return { appendedRows: result.data.updates?.updatedRows || rows.length, updatedRows: 0, clearedRows: false };
   }
 
   const current = await sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range });
   const values = current.data.values || [];
   const leadIndex = buildLeadIndex(values);
-
   const updates = [];
   const inserts = [];
 
   rows.forEach(row => {
     const leadId = String(row[1] || '').trim();
     const targetRow = leadIndex.get(leadId);
-    if (targetRow) {
-      updates.push({ range: `${targetTab}!A${targetRow}:O${targetRow}`, values: [row] });
-    } else {
-      inserts.push(row);
-    }
+    if (targetRow) updates.push({ range: `${targetTab}!A${targetRow}:O${targetRow}`, values: [row] });
+    else inserts.push(row);
   });
 
-  const updateBatches = chunk(updates, 300);
-  for (const batch of updateBatches) {
-    await sheets.spreadsheets.values.batchUpdate({
-      spreadsheetId: sheetId,
-      requestBody: {
-        valueInputOption,
-        data: batch
-      }
-    });
+  for (const batch of chunk(updates, 300)) {
+    await sheets.spreadsheets.values.batchUpdate({ spreadsheetId: sheetId, requestBody: { valueInputOption, data: batch } });
   }
 
-  if (inserts.length) {
-    const insertBatches = chunk(inserts, 400);
-    for (const batch of insertBatches) {
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range,
-        valueInputOption,
-        insertDataOption: 'INSERT_ROWS',
-        requestBody: { values: batch }
-      });
-    }
+  for (const batch of chunk(inserts, 400)) {
+    await sheets.spreadsheets.values.append({ spreadsheetId: sheetId, range, valueInputOption, insertDataOption: 'INSERT_ROWS', requestBody: { values: batch } });
   }
 
   return { appendedRows: inserts.length, updatedRows: updates.length, clearedRows: false };
 }
 
 function safePreviewRecord(record) {
-  return {
-    id: record.id || '',
-    name: record.name || '',
-    companyName: record.companyName || '',
-    value: record.value || 0,
-    stage: record.stage || '',
-    stageId: record.stageId || '',
-    owner: record.owner || '',
-    source: record.source || '',
-    lossReason: record.lossReason || '',
-    diagnostics: record._diagnostics || null
-  };
+  return { id: record.id || '', name: record.name || '', companyName: record.companyName || '', value: record.value || 0, stage: record.stage || '', stageId: record.stageId || '', owner: record.owner || '', source: record.source || '', lossReason: record.lossReason || '', diagnostics: record._diagnostics || null };
 }
 
 export default async function handler(req, res) {
@@ -166,29 +134,9 @@ export default async function handler(req, res) {
     const rows = records.map(record => toBaseCrmRow(record, stages));
 
     let writeResult = { appendedRows: 0, updatedRows: 0, clearedRows: false };
-    if (writeToSheet) {
-      writeResult = await writeRows({ growthpackUrl: client.growthpackUrl, tabName: targetTab, rows, mode: writeMode });
-    }
+    if (writeToSheet) writeResult = await writeRows({ growthpackUrl: client.growthpackUrl, tabName: targetTab, rows, mode: writeMode });
 
-    return send(res, 200, {
-      ok: true,
-      client: client.name || 'Cliente sem nome',
-      crm: integration.crm || 'mock',
-      destino: targetTab,
-      records: records.length,
-      writtenRows: writeResult.appendedRows + writeResult.updatedRows,
-      appendedRows: writeResult.appendedRows,
-      updatedRows: writeResult.updatedRows,
-      clearedRows: Boolean(writeResult.clearedRows),
-      writeMode,
-      requestedMode,
-      rows: writeToSheet ? undefined : rows.slice(0, 100),
-      previewRowsReturned: writeToSheet ? 0 : Math.min(rows.length, 100),
-      previewRecords: includeDiagnostics ? records.slice(0, 5).map(safePreviewRecord) : undefined,
-      message: writeToSheet
-        ? (writeMode === 'rebuild' ? 'Sync completed and target tab was rebuilt.' : 'Sync completed and rows were upserted into BASE_CRM.')
-        : 'Sync completed in preview mode.'
-    });
+    return send(res, 200, { ok: true, client: client.name || 'Cliente sem nome', crm: integration.crm || '', destino: targetTab, records: records.length, writtenRows: writeResult.appendedRows + writeResult.updatedRows, appendedRows: writeResult.appendedRows, updatedRows: writeResult.updatedRows, clearedRows: Boolean(writeResult.clearedRows), writeMode, requestedMode, rows: writeToSheet ? undefined : rows.slice(0, 100), previewRowsReturned: writeToSheet ? 0 : Math.min(rows.length, 100), previewRecords: includeDiagnostics ? records.slice(0, 5).map(safePreviewRecord) : undefined, message: writeToSheet ? (writeMode === 'rebuild' ? 'Sync completed and target tab was rebuilt.' : 'Sync completed and rows were upserted into BASE_CRM.') : 'Sync completed in preview mode.' });
   } catch (error) {
     return send(res, 500, { ok: false, message: error.message, stack: process.env.NODE_ENV === 'development' ? error.stack : undefined });
   }
