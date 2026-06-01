@@ -3,5 +3,11 @@
   "trailingSlash": false,
   "github": {
     "silent": false
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/ui",
+      "destination": "/visual-flow.html"
+    }
+  ]
 }
