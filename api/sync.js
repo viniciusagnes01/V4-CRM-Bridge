@@ -6,6 +6,8 @@ import { fetchPipeDriveDeals } from './_pipedrive.js';
 import { extractSheetId, getGoogleAuth, readJson, send, toBaseCrmRow, headerKey } from './_utils.js';
 
 function envValue(integration, fallbackNames = []) {
+  const runtimeValue = integration.pv || '';
+  if (runtimeValue) return runtimeValue;
   const alias = integration.credentialAlias || integration.tokenAlias || '';
   if (alias && process.env[alias]) return process.env[alias];
   for (const name of fallbackNames) {
