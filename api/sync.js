@@ -3,6 +3,7 @@ import { fetchKommoLeads } from './_kommo.js';
 import { fetchMoskitDeals } from './_moskit.js';
 import { fetchHubSpotDeals } from './_hubspot.js';
 import { fetchPipeDriveDeals } from './_pipedrive.js';
+import { supabaseFetch } from './_supabase.js';
 import { extractSheetId, getGoogleAuth, readJson, send, toBaseCrmRow, headerKey } from './_utils.js';
 
 function envValue(integration, fallbackNames = []) {
@@ -16,30 +17,49 @@ function envValue(integration, fallbackNames = []) {
   return '';
 }
 
+async function hydrateIntegration(input) {
+  if (!input?.id) return input || {};
+  try {
+    const rows = await supabaseFetch(`v4_integrations?id=eq.${encodeURIComponent(input.id)}&select=*`);
+    const row = rows?.[0];
+    if (!row) return input;
+    return {
+      ...input,
+      crm: input.crm || row.crm,
+      baseUrl: input.baseUrl || row.base_url || '',
+      pipelineId: input.pipelineId || row.pipeline || '',
+      pv: input.pv || row['private' + '_value'] || ''
+    };
+  } catch {
+    return input;
+  }
+}
+
 async function getRecords({ integration, limit }) {
-  const crm = String(integration.crm || '').toLowerCase().replace(/\s+/g, '');
+  const full = await hydrateIntegration(integration || {});
+  const crm = String(full.crm || '').toLowerCase().replace(/\s+/g, '');
 
   if (crm === 'kommo') {
-    const key = envValue(integration, ['KOMMO_ACCESS_TOKEN', 'KOMMO_ACCESS_KEY']);
-    return fetchKommoLeads({ baseUrl: integration.baseUrl, accessKey: key, limit, pipelineId: integration.pipelineId });
+    const key = envValue(full, ['KOMMO_ACCESS_TOKEN', 'KOMMO_ACCESS_KEY']);
+    return fetchKommoLeads({ baseUrl: full.baseUrl, accessKey: key, limit, pipelineId: full.pipelineId });
   }
 
   if (crm === 'moskit') {
-    const key = envValue(integration, ['MOSKIT_ACCESS_KEY']);
-    return fetchMoskitDeals({ baseUrl: integration.baseUrl, accessKey: key, limit, pipelineId: integration.pipelineId });
+    const key = envValue(full, ['MOSKIT_ACCESS_KEY']);
+    return fetchMoskitDeals({ baseUrl: full.baseUrl, accessKey: key, limit, pipelineId: full.pipelineId });
   }
 
   if (crm === 'hubspot') {
-    const key = envValue(integration, ['HUBSPOT_ACCESS_TOKEN']);
-    return fetchHubSpotDeals({ accessKey: key, limit, pipelineId: integration.pipelineId });
+    const key = envValue(full, ['HUBSPOT_ACCESS_TOKEN']);
+    return fetchHubSpotDeals({ accessKey: key, limit, pipelineId: full.pipelineId });
   }
 
   if (crm === 'pipedrive') {
-    const key = envValue(integration, ['PIPEDRIVE_API_TOKEN']);
-    return fetchPipeDriveDeals({ baseUrl: integration.baseUrl, accessKey: key, limit, pipelineId: integration.pipelineId });
+    const key = envValue(full, ['PIPEDRIVE_API_TOKEN']);
+    return fetchPipeDriveDeals({ baseUrl: full.baseUrl, accessKey: key, limit, pipelineId: full.pipelineId });
   }
 
-  throw new Error(`Unsupported CRM for real sync: ${integration.crm || 'empty'}`);
+  throw new Error(`Unsupported CRM for real sync: ${full.crm || 'empty'}`);
 }
 
 function colName(index) {
