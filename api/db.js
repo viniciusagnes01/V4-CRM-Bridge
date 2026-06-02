@@ -32,6 +32,13 @@ function tableFor(resource) {
   return table;
 }
 
+function hint(value) {
+  const text = String(value || '');
+  if (!text) return '';
+  if (text.length <= 8) return 'salvo';
+  return `${text.slice(0, 4)}...${text.slice(-4)}`;
+}
+
 function normalizeResource(resource, row) {
   if (!row) return row;
   if (resource === 'integrations') {
@@ -41,6 +48,8 @@ function normalizeResource(resource, row) {
       crm: row.crm,
       alias: row.alias,
       baseUrl: row.base_url,
+      privateHint: row.private_hint || (row.private_value ? 'salvo' : ''),
+      hasPrivateValue: Boolean(row.private_value),
       pipeline: row.pipeline,
       pipelineName: row.pipeline_name,
       trigger: row.trigger,
@@ -89,9 +98,9 @@ function normalizeResource(resource, row) {
   return row;
 }
 
-function toDb(resource, item) {
+function toDb(resource, item, patch = false) {
   if (resource === 'integrations') {
-    return {
+    const out = {
       client: item.client || '',
       crm: item.crm || '',
       alias: item.alias || item.credentialAlias || '',
@@ -104,6 +113,17 @@ function toDb(resource, item) {
       write_mode: item.writeMode || item.write_mode || 'upsert',
       status: item.status || 'Ativo'
     };
+    if (Object.prototype.hasOwnProperty.call(item, 'privateValue') || Object.prototype.hasOwnProperty.call(item, 'private_value')) {
+      const value = item.privateValue || item.private_value || '';
+      if (value) {
+        out.private_value = value;
+        out.private_hint = hint(value);
+      } else if (!patch) {
+        out.private_value = '';
+        out.private_hint = '';
+      }
+    }
+    return out;
   }
   if (resource === 'clients') {
     return {
@@ -161,13 +181,13 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const rows = await supabaseFetch(table, { method: 'POST', body: JSON.stringify(toDb(resource, data)) });
+      const rows = await supabaseFetch(table, { method: 'POST', body: JSON.stringify(toDb(resource, data, false)) });
       return send(res, 200, { ok: true, item: normalizeResource(resource, rows?.[0]) });
     }
 
     if (req.method === 'PUT' || req.method === 'PATCH') {
       if (!id) return send(res, 400, { ok: false, message: 'Missing id' });
-      const rows = await supabaseFetch(`${table}?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(toDb(resource, data)) });
+      const rows = await supabaseFetch(`${table}?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(toDb(resource, data, true)) });
       return send(res, 200, { ok: true, item: normalizeResource(resource, rows?.[0]) });
     }
 
