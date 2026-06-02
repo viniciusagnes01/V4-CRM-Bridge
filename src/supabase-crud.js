@@ -22,7 +22,6 @@
   }
 
   async function loadAll() {
-    if (sessionStorage.getItem(FLAG) === '1') return;
     try {
       const result = await api('');
       const current = readLocal();
@@ -94,7 +93,21 @@
     });
   }
 
+  function ensurePrivateField() {
+    const panel = document.getElementById('credential-panel');
+    if (!panel || document.getElementById('integrationPrivateValue')) return;
+    const field = document.createElement('div');
+    field.innerHTML = `
+      <label>Token/API key do CRM</label>
+      <input id="integrationPrivateValue" type="password" placeholder="Cole aqui o token/API key deste cliente">
+      <small class="muted">Será salvo no Supabase e não será exibido novamente no app.</small>
+    `;
+    panel.appendChild(field);
+  }
+
   function patchForms() {
+    ensurePrivateField();
+
     const accountForm = document.querySelector('form[onsubmit="submitAccount(event)"]');
     if (accountForm && !accountForm.dataset.supabaseCrud) {
       accountForm.dataset.supabaseCrud = '1';
@@ -141,6 +154,7 @@
           crm,
           alias: document.getElementById('integrationAlias')?.value || '',
           baseUrl: document.getElementById('integrationBaseUrl')?.value || '',
+          privateValue: document.getElementById('integrationPrivateValue')?.value || '',
           pipeline: pipelineInput?.value || '',
           pipelineName: pipelineInput?.dataset?.pipelineName || pipelineInput?.value || '',
           trigger: document.getElementById('integrationTrigger').value,
@@ -156,7 +170,7 @@
   }
 
   function boot() {
-    loadAll();
+    if (sessionStorage.getItem(FLAG) !== '1') loadAll();
     patchForms();
     addDeleteButtons();
   }
